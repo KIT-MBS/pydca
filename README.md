@@ -16,3 +16,4 @@ vitrualenv -p python3 demo
 source demo/bin/activate
 ```
 3. Now lets check if we are using Python from the newly created virtual environment.
+=======

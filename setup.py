@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-with open('README') as fh:
+with open('README.md', encoding='utf-8') as fh:
     long_description = fh.read()
 
 requirements = [

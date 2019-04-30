@@ -2,7 +2,9 @@
 pydca is a Python implementation of direct coupling analysis of residue coevolution for proteins and RNAs using the mean-field approximation algorithm. Given multiple sequence alignment (MSA) files in FASTA format, pydca computes the coevolutionary scores of pairs of sites in the alignment. Furthermore, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA.
 
 # Prerequisites
-pydca requires Python3, version 3.5 or latter.
+* Python3, version 3.5 or latter.
+* python3-tk
+
 
 # Installing
 Here, we demonstrate how to install pydca in a Linux/Unix machine. A similar procedure follows for Mac or Windows.

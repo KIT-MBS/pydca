@@ -28,9 +28,9 @@ setup(
     ),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "LICENSE :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Development Status :: 4-Beta",
+        "Development Status :: 4 - Beta",
         "Environment :: Console",
     ],
     install_requires= requirements,

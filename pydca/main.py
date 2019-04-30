@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def configure_logging():
     """Configures logging. When configured, the logging level is INFO and
     messages are logged to stream handler. Log level name are colored whenever
-    the terminal supports that. INFO level is Green, WARN level is Yellow and
+    the terminal supports that. INFO level is Green, WARNING level is Yellow and
     ERROR level is Red.
     """
     from pydca.config_dca.config_log import LOGGING_CONFIG
@@ -29,8 +29,8 @@ def configure_logging():
     logging.config.dictConfig(LOGGING_CONFIG)
     logging.addLevelName(logging.INFO, '{}{}{}'.format(
         c_color.green, logging.getLevelName(logging.INFO), c_color.nocolor))
-    logging.addLevelName(logging.WARN, '{}{}{}'.format(
-        c_color.yellow, logging.getLevelName(logging.WARN), c_color.nocolor))
+    logging.addLevelName(logging.WARNING, '{}{}{}'.format(
+        c_color.yellow, logging.getLevelName(logging.WARNING), c_color.nocolor))
     logging.addLevelName(logging.ERROR, '{}{}{}'.format(
         c_color.red, logging.getLevelName(logging.ERROR), c_color.nocolor))
     return None

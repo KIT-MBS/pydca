@@ -18,7 +18,6 @@ pydca depends python based libraries, e.g., *numpy*, *scipy*, *matplotlib*, or *
 $ sudo apt install python3-pip
 ```  
 Now we can install pipenv as follows
-### Activate the virtual environment
 ```bash
 $ pip3 install pipenv
 ```

@@ -151,27 +151,30 @@ def get_alignment_int_form(file_name, biomolecule='protein'):
     alignment_int_form = []
     alignment = get_alignment_from_fasta_file(file_name)
 
+    num_seqs_with_non_standard_res = 0
+    num_non_standard_res = 0
     for seq in alignment:
         try:
             seq_int = [RES_TO_INT[res.upper()] for res in seq]
         except KeyError:
-            logger.info(
-                '\n\tFound unrecognized or non-standard residue type.'
-                '\n\tResidue type replaced by gap state',
-            )
+            num_seqs_with_non_standard_res += 1
             seq_int = []
             for res in seq:
                 res = res.upper()
                 if res in RES_TO_INT.keys():
                     seq_int.append(RES_TO_INT[res.upper()])
                 else:
+                    num_non_standard_res += 1
                     seq_int.append(NUM_SITE_STATES)
         #if seq_int not in alignment_int_form:
         alignment_int_form.append(seq_int)
+    if num_seqs_with_non_standard_res > 0:
+        logger.info('\n\tFound {} non-standard residues in {} sequences'
+            ''.format(num_non_standard_res, num_seqs_with_non_standard_res)
+        )
     if not alignment_int_form:
         logger.error('\n\tNo data found in alignment in integer representation')
         raise ValueError
-
     return alignment_int_form
 
 
@@ -199,7 +202,7 @@ def get_alignment_char_form(file_name, biomolecule = 'PROTEIN'):
         biomolecule=biomolecule,
     )
 
-    msg = '\n\tConverting alignment back to char representation'
+    msg = '\n\tConverting sequences back to character representation'
     logger.info(msg)
 
     RES_TO_CHAR = res_to_char(biomolecule)

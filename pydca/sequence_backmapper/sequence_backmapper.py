@@ -47,7 +47,9 @@ class SequenceBackmapper:
         """
         self.__biomolecule = biomolecule.strip().upper()
         if msa_file:
-            self.__alignment = fasta_reader.get_alignment_char_form(msa_file)
+            self.__alignment = fasta_reader.get_alignment_char_form(msa_file,
+                biomolecule=self.__biomolecule
+            )
         elif alignment_data:
             unique_seqs = []
             for seq in alignment_data:
@@ -137,6 +139,9 @@ class SequenceBackmapper:
             ref_sequence : str
                 Reference sequence
         """
+        logger.info('\n\tObtaining reference sequence from file:'
+            '\n\t\t{}'.format(refseq_file)
+        )
         ref_seqs = fasta_reader.get_alignment_char_form(
             refseq_file,
             biomolecule = self.__biomolecule,
@@ -247,6 +252,11 @@ class SequenceBackmapper:
         best_matching_seqs = [
             self.__alignment[indx] for indx in matching_seqs_indx
         ]
+        num_matching_seqs = len(best_matching_seqs)
+        if num_matching_seqs > 1 :
+            logger.warning('\n\tFound {} sequences in MSA that match the reference'
+                '\n\tThe first sequence is taken as matching'.format(num_matching_seqs)
+            )
         return best_matching_seqs
 
     @staticmethod

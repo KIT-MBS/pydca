@@ -116,9 +116,6 @@ class MSATrimmer:
         msa_columns_beyond_max_gap = [
             i for i in range(seqs_len) if columns_gap_size[i] > self.__max_gap
         ]
-        logger.info('\n\tNumber of columns in MSA that contain more than {}%'
-            ' of gaps: {}'.format(self.__max_gap * 100, len(msa_columns_beyond_max_gap))
-        )
         return tuple(msa_columns_beyond_max_gap)
 
 
@@ -180,7 +177,7 @@ class MSATrimmer:
             # find out MSA columns that does correspond to gaps w.r.t the sequence
             # in MSA that matches with the reference
             logger.info('\n\tNumber of columns with more than {0:.2f}% gaps:{1}'
-                ''.format(self.__max_gap, len(candidate_columns_to_remove))
+                ''.format(self.__max_gap* 100, len(candidate_columns_to_remove))
             )
             columns_to_remove = [
                 i for i in candidate_columns_to_remove if first_matching_seq[i] in gap_symbols

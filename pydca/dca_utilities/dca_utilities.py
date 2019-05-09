@@ -349,6 +349,43 @@ def write_couplings(file_name, couplings, num_site_states = None,
     return None
 
 
+def write_fields(file_name, fields, num_site_states=None,site_mapping=None, metadata=None):
+    """Writes local fields to file.
+
+    Parameters
+    ----------
+        file_name : str
+            Path to output file name to write local fields.
+        fields : dict
+            A dictionary whose keys are sites and values are a 1d numpy array of
+            fields corresponding to states of that particular site.
+        num_site_states : int
+            Total number of states at sites. It takes either five or 21 for RNAs
+            and proteins, respectively.
+        site_mapping: dict
+            A dictionary that provides mapping between the sites of the MSA data
+            and that of a reference sequence.
+        metadata : list
+            A list containing metadata to be written to the header of fields
+            output file.
+    """
+    num_sites = len(fields.keys())
+    with open(file_name, 'w') as fh:
+        fh.write('#{}\n'.format(70*'='))
+        if metadata is not None:
+            for data in metadata:
+                fh.write('{}\n'.format(data))
+            fh.write('# In the data below, the first integers referes to sites,\n'
+                '# the Second integer to residue type and the last data\n'
+                '# is local field. Residues are mapped as shown above\n'
+                '#{}\n'.format(70*'=')
+            )
+            for i in range(num_sites):
+                for a in range(num_site_states-1):
+                    fh.write('{},{},{}\n'.format(i + 1, a + 1, fields[i][a]))
+    return None
+
+
 def write_single_site_freqs(file_name, fi, seqs_len = None,
         num_site_states = None, metadata = None):
     """Writes single site frequencies to file.
@@ -538,6 +575,35 @@ def write_contact_map(file_name, contact_categories_dict, metadata=None):
                 fmted_line = '\t\t'.join(str(elem) for elem in line)
                 fh.write(fmted_line + '\n')
 
+    return None
+
+
+def write_trimmed_msa(file_name, msa_trimmer=None, columns_to_remove=None, metadata=None):
+    """Writes trimmed MSA file in FASTA format
+
+    Parameters
+    ----------
+        file_name : str
+            Path to file where trimmed MSA data is going to be written
+        msa_trimmer : MSATrimmer
+            An instance of MSATrimmer class
+        columns_to_remove : list/tuple
+            A list of columns to be trimmed from the MSA
+        metadata : list/tuple
+            A list/tuple of metadata about trimming parameters used to trim the
+            MSA
+
+    Returns
+    -------
+        None : None
+    """
+    logger.info('\n\tWritting trimmed MSA in to file {}'.format(file_name))
+    with open(file_name, 'w') as fh:
+        for record in msa_trimmer.alignment_data:
+            trimmed_seq = [
+                record.seq[i] for i in range(len(record.seq)) if i not in columns_to_remove
+            ]
+            fh.write('>{}\n{}\n'.format(record.id, ''.join(trimmed_seq)))
     return None
 
 

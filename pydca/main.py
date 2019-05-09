@@ -2,6 +2,7 @@ from pydca.meanfield_dca import meanfield_dca
 from pydca.sequence_backmapper.sequence_backmapper import SequenceBackmapper
 from pydca.dca_utilities import dca_utilities
 from pydca.contact_visualizer.contact_visualizer import DCAVisualizer, PDBContent
+from pydca.msa_trimmer.msa_trimmer import MSATrimmer
 from argparse import ArgumentParser
 import logging
 import sys
@@ -139,10 +140,19 @@ class CmdArgs:
     compute_fn =  'compute_fn'
     compute_fn_help = """Compute the Frobenius norm of couplings.
     """
+    max_gap_optional = '--max_gap'
+    max_gap_help = """The maximum fraction of gaps in MSA column. When an MSA
+    data is trimmed, columns containing gap fraction more than this value are
+    removed.
+    """
+    remove_all_gaps_optional = '--remove_all_gaps'
+    remove_all_gaps_help = """Removes columns in the MSA correponding to
+    the matching sequence's gap positions.
+    """
 ## end of class CmdArgs
 
 DCA_COMPUTATION_SUBCOMMANDS = ['compute_di', 'compute_fn','compute_couplings',
-    'compute_fields', 'compute_fi', 'compute_fij',
+    'compute_fields', 'compute_params','compute_fi', 'compute_fij',
 ]
 
 DCA_VISUALIZATION_SUBCOMMANDS = ['plot_contact_map', 'plot_tp_rate']
@@ -150,11 +160,14 @@ DCA_VISUALIZATION_SUBCOMMANDS = ['plot_contact_map', 'plot_tp_rate']
 FILE_CONTENT_SUBCOMMANDS = ['pdb_content', 'refseq_content', 'dca_content',
     'rna_secstruct_content',
 ]
+
+MSA_TRIMMING_SUBCOMMANDS = ['trim_by_refseq', 'trim_by_gap_size']
 # all subcommands
 ALL_SUBCOMMANDS = list()
 ALL_SUBCOMMANDS.extend(DCA_COMPUTATION_SUBCOMMANDS)
 ALL_SUBCOMMANDS.extend(DCA_VISUALIZATION_SUBCOMMANDS)
 ALL_SUBCOMMANDS.extend(FILE_CONTENT_SUBCOMMANDS)
+ALL_SUBCOMMANDS.extend(MSA_TRIMMING_SUBCOMMANDS)
 
 def get_mfdca_instance(msa_file, biomolecule, force_seq_type=False, **kwargs):
     """Inititalizes the MeanFieldDCA instance based on the arguments passed
@@ -309,7 +322,19 @@ def add_args_to_subparser(the_parser, subcommand_name):
     if subcommand_name in FILE_CONTENT_SUBCOMMANDS:
         if subcommand_name == 'pdb_content':
             the_parser.add_argument(CmdArgs.pdb_file, help = CmdArgs.pdb_file_help)
-
+    if subcommand_name in MSA_TRIMMING_SUBCOMMANDS:
+        the_parser.add_argument(CmdArgs.max_gap_optional,
+            type = float, help = CmdArgs.max_gap_help,
+        )
+        if subcommand_name == 'trim_by_refseq':
+            the_parser.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
+            the_parser.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
+            the_parser.add_argument(CmdArgs.refseq_file, help=CmdArgs.refseq_file_help)
+            the_parser.add_argument(CmdArgs.remove_all_gaps_optional,
+                help= CmdArgs.remove_all_gaps_help, action='store_true',
+            )
+        if subcommand_name == 'trim_by_gap_size':
+            the_parser.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
     return None
 
 
@@ -318,7 +343,7 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
         force_seq_type=False, verbose=False, output_dir=None, apc=False,
         pdb_file=None, pdb_chain_id=None, dca_file=None, rna_secstruct_file=None,
         linear_dist=None, contact_dist=None, num_dca_contacts=None,
-        wc_neighbor_dist=None, pdb_id=None):
+        wc_neighbor_dist=None, pdb_id=None, max_gap=None, remove_all_gaps=False):
     """Do computations according to the parameters passed on the command line
 
     Parameters
@@ -392,7 +417,6 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
                 couplings_file_path = dca_utilities.get_dca_output_file_path(
                     output_dir, msa_file, prefix='couplings_', postfix='.txt'
                 )
-                param_metadata = dca_utilities.mfdca_param_metadata(mfdca_instance)
                 residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
                     mfdca_instance.biomolecule
                 )
@@ -432,12 +456,34 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
         # compute global probability local fields
         if the_command.strip()=='compute_fields':
             fields = mfdca_instance.compute_fields()
+            residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
+                mfdca_instance.biomolecule
+            )
+            metadata = param_metadata + residue_repr_metadata
+            fields_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                msa_file, prefix = 'fields_', postfix='.txt'
+            )
+            dca_utilities.write_fields(fields_file_path, fields, metadata=metadata,
+                num_site_states = mfdca_instance.num_site_states,
+            )
+        # compute fields and couplings
+        if the_command.strip() == 'compute_params':
+            fields, couplings = mfdca_instance.compute_hamiltonian()
+            residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
+                mfdca_instance.biomolecule
+            )
+            metadata = param_metadata + residue_repr_metadata
+            fileds_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                msa_file, prefix='fields_', postfix='.txt',
+            )
+            couplings_file_path = dca_utilities.get_dca_output_file_path(
+                output_dir, msa_file, prefix='couplings_', postfix='.txt',
+            )
 
         #Compute single site frequencies
         if the_command.strip() == 'compute_fi':
             #pass --pseudocount 0.0 if raw frequencies are desired
             fi = mfdca_instance.get_reg_single_site_freqs()
-            param_metadata = dca_utilities.mfdca_param_metadata(mfdca_instance)
             residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
                 mfdca_instance.biomolecule)
             metadata = param_metadata + residue_repr_metadata
@@ -454,7 +500,6 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
             file_path = dca_utilities.get_dca_output_file_path(output_dir,
                 msa_file, prefix='fij_', postfix='.txt',
             )
-            param_metadata = dca_utilities.mfdca_param_metadata(mfdca_instance)
             residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
                 mfdca_instance.biomolecule,
             )
@@ -519,6 +564,30 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
             pdb_content = get_pdb_content_instance(pdb_file)
             pdb_content.show_struct_info()
 
+    ### MSA trimming commands
+    if the_command.strip() in MSA_TRIMMING_SUBCOMMANDS:
+        if the_command.strip() == 'trim_by_refseq':
+            msa_trimmer = MSATrimmer(msa_file,
+                biomolecule=biomolecule,
+                refseq_file=refseq_file,
+                max_gap= max_gap,
+            )
+            columns_to_remove = msa_trimmer.trim_by_refseq(
+                remove_all_gaps=remove_all_gaps,
+            )
+        if the_command.strip() == 'trim_by_gap_size':
+            msa_trimmer = MSATrimmer(msa_file, max_gap=max_gap)
+            columns_to_remove = msa_trimmer.trim_by_gap_size()
+        if not output_dir:
+            msa_file_basename, ext = os.path.splitext(os.path.basename(msa_file))
+            output_dir = 'Trimmed_' +  msa_file_basename
+            dca_utilities.create_directories(output_dir)
+        output_file_path = dca_utilities.get_dca_output_file_path(
+            output_dir, msa_file, prefix= 'Trimmed_', postfix='.fa'
+        )
+        dca_utilities.write_trimmed_msa(output_file_path, msa_trimmer=msa_trimmer,
+            columns_to_remove=columns_to_remove,
+            )
     return None
 
 
@@ -567,6 +636,13 @@ def run_meanfield_dca():
     )
     add_args_to_subparser(parser_compute_fields, 'compute_fields')
 
+    # parameters (fields and couplings) computation parser
+    parser_compute_params = subparsers.add_parser('compute_params',
+        help = 'Computes the parameters of global probability model, i.e., '
+            ' couplings and fields in one run.'
+    )
+    add_args_to_subparser(parser_compute_params, 'compute_params')
+
     #Single site frequencies computation parser
     parser_compute_fi = subparsers.add_parser('compute_fi',
         help = 'Computes regularized single-site frequencies from MSA.'
@@ -605,6 +681,23 @@ def run_meanfield_dca():
             ' on the terminal.',
     )
     add_args_to_subparser(parser_pdb_content, 'pdb_content')
+
+    parser_trim_by_refseq = subparsers.add_parser('trim_by_refseq',
+        help='Removes MSA columns containing fraction of gaps more than'
+        ' the value specified by {} (default 0.5) if these columns'
+        ' do not correspond to residues of the sequence in MSA that matches'
+        ' with the reference. Setting max_gap to zero removes all columns'
+        ' except those corresponding to the residues of the matching sequence'
+        ' to the reference.'.format(CmdArgs.max_gap_optional)
+    )
+    add_args_to_subparser(parser_trim_by_refseq, 'trim_by_refseq')
+
+    parser_trim_by_gap_size = subparsers.add_parser('trim_by_gap_size',
+        help = 'Removes MSA columns containing gap fraction more than the value'
+            ' specified by {} (default 0.5)'.format(CmdArgs.max_gap_optional)
+    )
+    add_args_to_subparser(parser_trim_by_gap_size, 'trim_by_gap_size')
+
     #display help if no argument is passed
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args_dict = vars(args)
@@ -629,6 +722,8 @@ def run_meanfield_dca():
         num_dca_contacts = args_dict.get('num_dca_contacts'),
         wc_neighbor_dist = args_dict.get('wc_neighbor_dist'),
         pdb_id = args_dict.get('pdb_id'),
+        max_gap = args_dict.get('max_gap'),
+        remove_all_gaps = args_dict.get('remove_all_gaps'),
     )
     logger.info('\n\tDONE')
     return None

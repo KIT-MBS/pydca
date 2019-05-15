@@ -1,8 +1,6 @@
 from Bio import AlignIO
-import logging
 from ..sequence_backmapper.sequence_backmapper import SequenceBackmapper
-from ..fasta_reader import fasta_reader
-
+import logging
 """Trims MSA data by gap percentage or removing all gaps corresponding to best
 matching sequence to a reference sequence.
 

@@ -58,9 +58,10 @@ class CmdArgs:
     plus a gap is 21 for protein, and 5 for RNA sequences. If there is a significant
     deviation from these values, it is interpreted as the user has inadvertently
     entered a biomolecule type mismatch and an error may be raised.
-    This can happen when the alignment data contains too many non-standared
-    residues or when a wrong biomolecule type is entered. Use this command option
-    (without assigning value) to bypass this error.
+    This can happen when the alignment data contains too many/few non-standared
+    residues or when a wrong biomolecule type is entered. If you are sure about
+    the biomolecule type the MSA data represents, use --force_seq_type to bypass
+    this error. 
     """
     msa_file = 'msa_file'
     msa_file_help = 'Multiple sequence alignment (MSA) file in FASTA format'

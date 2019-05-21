@@ -237,7 +237,7 @@ def write_sorted_dca_scores(file_name, sorted_DI, site_mapping=None,
                 '\n# the MSA is mapped to the First in the reference.\n'
             )
             for pair in mapping_key_pairs:
-                mpk_fh.write('{}---->{}\n'.format(pair[0] + 1, pair[1] + 1))
+                mpk_fh.write('{}--->{}\n'.format(pair[0] + 1, pair[1] + 1))
         num_skipped_pairs = 0
         for pair, score in sorted_DI: # iterate over all unique pairs (i, j) for all j > i
                 try:                  # and corresponding DCA scores.
@@ -301,7 +301,7 @@ def get_couplings_for_pair(couplings = None, pair = None, num_site_states = None
 
 
 def write_couplings(file_name, couplings, num_site_states = None,
-        ranked_site_pairs = None, metadata = None):
+        ranked_site_pairs = None, metadata = None, seqs_len=None):
     """Writes the couplings to file.
 
     Parameters
@@ -337,19 +337,34 @@ def write_couplings(file_name, couplings, num_site_states = None,
                 '# Residues are mapped as shown above\n')
             fh.write('#' + '='*70 + '\n')
         #write the couplings
-        for pair in ranked_site_pairs:
-            couplings_ij = get_couplings_for_pair(couplings = couplings,
-                pair = pair, num_site_states = num_site_states)
-            for a in range(num_site_states - 1):
-                for b in range(num_site_states - 1):
-                    couplings_ij_ab = couplings_ij[a,b]
-                    fh.write('{},{},{},{},{}\n'.format(
-                        pair[0] + 1, pair[1] + 1, a + 1, b + 1, couplings_ij_ab)
+        if ranked_site_pairs is not None:
+            for pair in ranked_site_pairs:
+                couplings_ij = get_couplings_for_pair(couplings = couplings,
+                    pair = pair, num_site_states = num_site_states,
+                )
+                for a in range(num_site_states - 1):
+                    for b in range(num_site_states - 1):
+                        couplings_ij_ab = couplings_ij[a,b]
+                        fh.write('{},{},{},{},{}\n'.format(
+                            pair[0] + 1, pair[1] + 1, a + 1, b + 1, couplings_ij_ab)
+                        )
+        else: # write couplings in order of sites (no ranking by DCA score)
+            for i in range(seqs_len - 1):
+                for j in range(i + 1, seqs_len):
+                    pair = (i, j)
+                    couplings_ij = get_couplings_for_pair(couplings=couplings,
+                        pair = pair, num_site_states= num_site_states,
                     )
+                    for a in range(num_site_states - 1):
+                        for b in range(num_site_states - 1):
+                            couplings_ij_ab = couplings_ij[a,b]
+                            fh.write('{},{},{},{},{}\n'.format(
+                                pair[0] + 1, pair[1] + 1, a + 1, b + 1, couplings_ij_ab)
+                            )
     return None
 
 
-def write_fields(file_name, fields, num_site_states=None,site_mapping=None, metadata=None):
+def write_fields(file_name, fields, num_site_states=None, metadata=None):
     """Writes local fields to file.
 
     Parameters
@@ -369,6 +384,7 @@ def write_fields(file_name, fields, num_site_states=None,site_mapping=None, meta
             A list containing metadata to be written to the header of fields
             output file.
     """
+    logger.info('\n\tWriting fields to file {}'.format(file_name))
     num_sites = len(fields.keys())
     with open(file_name, 'w') as fh:
         fh.write('#{}\n'.format(70*'='))
@@ -460,6 +476,46 @@ def write_pair_site_freqs(file_name, fij, seqs_len = None,
                             i + 1, j + 1, a + 1, b + 1, fij[pair_counter, a, b]))
                 pair_counter += 1
 
+    return None
+
+
+def write_params(fields_file_path=None, couplings_file_path=None, fields=None,
+        couplings=None, num_site_states=None, metadata=None):
+    """Writes the couplings and fields to their corresponding output files.
+
+    Parameters
+    ----------
+        fields_file_path : str
+            File to write fields (of the global probability model)
+        couplings_file_path : str
+            File to write couplings
+        fields : np.array
+            Numpy 2d array containing the fields.
+        coupling : np.array
+            Numpy 2d array of the couplings.
+        num_site_states : int
+            The total number of site states. 5 and 21 for RNAs and proteins,
+            respectively.
+        metadata : list
+            A list of metadata to be written to output files.
+
+    Returns
+    -------
+        None : None 
+    """
+    # write fields
+    write_fields(
+        fields_file_path, fields,
+        num_site_states=num_site_states,
+        metadata = metadata,
+    )
+    #write couplings
+    seqs_len = len(fields.keys())
+    write_couplings(
+        couplings_file_path, couplings,
+        num_site_states=num_site_states,
+        metadata = metadata, seqs_len=seqs_len
+    )
     return None
 
 

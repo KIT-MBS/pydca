@@ -61,7 +61,7 @@ class CmdArgs:
     This can happen when the alignment data contains too many/few non-standared
     residues or when a wrong biomolecule type is entered. If you are sure about
     the biomolecule type the MSA data represents, use --force_seq_type to bypass
-    this error. 
+    this error.
     """
     msa_file = 'msa_file'
     msa_file_help = 'Multiple sequence alignment (MSA) file in FASTA format'
@@ -137,9 +137,6 @@ class CmdArgs:
     ranked contacts. The counting is done after appropriate filtering of the DCA
     ranked contacts is done if a filtering criteria (e.g., a non-zero linear distance)
     is set.
-    """
-    compute_fn =  'compute_fn'
-    compute_fn_help = """Compute the Frobenius norm of couplings.
     """
     max_gap_optional = '--max_gap'
     max_gap_help = """The maximum fraction of gaps in MSA column. When an MSA
@@ -356,13 +353,47 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
         seqid : float
             Value of sequence identity.
         pseudocount : float
-            Value of relative pseudo count
+            Value of relative pseudo count.
         the_command : str
             Name of the command passed from the command line.
+        refseq_file : str
+            Path to reference sequence file.
+        force_seq_type : bool
+            Force computation although there might be a biomolecule type  mismatch.
+        verbsoe : bool
+            Display logging message to the screen.
+        ouput_dir : str
+            Output directory to write ouput files.
+        apc : bool
+            Perform average product correction.
+        pdb_file : str
+            PDB file path.
+        pdb_chain_id : str
+            The name of a PDB chain in PDB file.
+        dca_file : str
+            DCA file path.
+        rna_secstruct_file : str
+            RNA secondary structure file path.
+        linear_dist : int
+            Minimum separation between two residues in sequence.
+        contact_dist : float
+            Maximum distance between two residues in PDB to be considered as contacts.
+        num_dca_contacts : int
+            Number of DCA contacts to be taken from ranked pairs.
+        wc_neighbor_dist : int
+            Maximum radius for a residue to be considered as a neighbor of WC pairs.
+        pdb_id : str
+            The ID of a PDB as it is in PDB repository.
+        max_gap : float
+            Maximum fraction of gaps in an MSA column.
+        remove_all_gaps : float
+            Remove all gaps in MSA correponding to the best matching sequence to
+            a reference.
+
 
     Returns
     -------
-        None.
+        None : None 
     """
 
 
@@ -474,11 +505,19 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
                 mfdca_instance.biomolecule
             )
             metadata = param_metadata + residue_repr_metadata
-            fileds_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+            fields_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                 msa_file, prefix='fields_', postfix='.txt',
             )
             couplings_file_path = dca_utilities.get_dca_output_file_path(
                 output_dir, msa_file, prefix='couplings_', postfix='.txt',
+            )
+            dca_utilities.write_params(
+                fields_file_path=fields_file_path,
+                couplings_file_path=couplings_file_path,
+                fields=fields,
+                couplings=couplings,
+                metadata=metadata,
+                num_site_states = mfdca_instance.num_site_states,
             )
 
         #Compute single site frequencies

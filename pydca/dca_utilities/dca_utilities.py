@@ -333,7 +333,7 @@ def write_couplings(file_name, couplings, num_site_states = None,
                 fh.write('{}\n'.format(data))
             fh.write('# In the data below, First and Second integers refer to \n'
                 '# sites and the Third and Fourth integers refer to residue.\n'
-                '# The ordering in which sites appear is based on descending DCA score\n'
+                '# The last values are the couplings\n'
                 '# Residues are mapped as shown above\n')
             fh.write('#' + '='*70 + '\n')
         #write the couplings
@@ -501,7 +501,7 @@ def write_params(fields_file_path=None, couplings_file_path=None, fields=None,
 
     Returns
     -------
-        None : None 
+        None : None
     """
     # write fields
     write_fields(

@@ -50,7 +50,7 @@ following articles:
     b)  Direct-coupling analysis of residue coevolution captures native contacts
         across many protein families
         Faruck Morcos, Andrea Pagnani, Bryan Lunt, Arianna Bertolino,
-        Debora S Marks, Chris Sander, Riccardo Zecchina, José N Onuchic,
+        Debora S Marks, Chris Sander, Riccardo Zecchina, Jose N Onuchic,
         Terence Hwa, Martin Weigt
         Journal: Proceedings of the National Academy of Sciences
         Volume: 108
@@ -624,7 +624,7 @@ class MeanFieldDCA:
         return two_site_model_fields
 
 
-    def compute_fields(self):
+    def compute_fields(self, couplings=None):
         """Computes the local fields of the global probability of sequence space.
 
         Parameters
@@ -632,14 +632,21 @@ class MeanFieldDCA:
             self : MeanFieldDCA
                 An instance of MeanFieldDCA class
 
+            couplings : np.array
+                A 2d numpy array of the couplings. If not give, will be computed.
+
         Returns
         -------
             fields :
         """
-        reg_fi = self.get_reg_single_site_freqs()
-        reg_fij = self.get_reg_pair_site_freqs()
-        corr_mat = self.construct_corr_mat(reg_fi, reg_fij)
-        couplings = self.compute_couplings(corr_mat)
+
+        if couplings is None:
+            reg_fi = self.get_reg_single_site_freqs()
+            reg_fij = self.get_reg_pair_site_freqs()
+            corr_mat = self.construct_corr_mat(reg_fi, reg_fij)
+            couplings = self.compute_couplings(corr_mat)
+        else:
+            reg_fi = self.get_reg_single_site_freqs()
         q = self.__num_site_states
         fields = dict()
         logger.info('\n\tComputing local fields of the global probability function')
@@ -657,9 +664,35 @@ class MeanFieldDCA:
                     couplings_ij = couplings[row_start:row_end, col_start:col_end]
                     pj_col_vec = np.reshape(pj[:-1], (q-1, 1))
                     sum += np.dot(couplings_ij, pj_col_vec)
-            fields_i = np.log(pi[:-1]/piq) - sum
+
+            fields_i = np.log(pi[:-1]/piq) - np.reshape(sum, (q-1, ))
             fields[i] = fields_i
         return fields
+
+
+    def compute_hamiltonian(self):
+        """Computes the couplings and fields
+
+        Parameters
+        ----------
+            self : MeanFieldDCA
+                An instance of MeanFieldDCA class
+
+        Returns
+        -------
+            couplings : np.array
+                A 2d numpy array of the couplings
+            fields : dict
+                A dictionary of fields whose keys are sites and values are a numpy
+                array of fields.
+        """
+        reg_fi = self.get_reg_single_site_freqs()
+        reg_fij = self.get_reg_pair_site_freqs()
+        corr_mat = self.construct_corr_mat(reg_fi, reg_fij)
+        logger.info('\n\tComputing the Hamiltonian')
+        couplings = self.compute_couplings(corr_mat)
+        fields = self.compute_fields(couplings=couplings)
+        return fields, couplings
 
 
     def compute_sorted_DI(self):

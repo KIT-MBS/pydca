@@ -1,5 +1,5 @@
-# About pydca
-pydca is a Python implementation of direct coupling analysis of residue coevolution for proteins and RNAs using the mean-field approximation algorithm. Given multiple sequence alignment (MSA) files in FASTA format, pydca computes the coevolutionary scores of pairs of sites in the alignment. Furthermore, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA.
+# About `pydca`
+`pydca` is a Python implementation of direct coupling analysis (DCA) of residue coevolution for protein and RNA sequence families using the mean-field approximation algorithm. Given multiple sequence alignment (MSA) files in FASTA format, `pydca` computes the coevolutionary scores of pairs of sites in the alignment. In addition, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA. Furthermore, `pydca`  provides commands to compute the parameters of the energy function, compare and visualize contact map or true positive rates of DCA predicted residue pairs.
 
 # Prerequisites
 * Python3, version 3.5 or latter.
@@ -7,13 +7,14 @@ pydca is a Python implementation of direct coupling analysis of residue coevolut
 
 
 # Installing
-Before we install pydca, we need to make sure that we have Python3 interpreter and python3-tk installed. Here we show installation in an ubuntu/debian machine. A similar procedure is used for other Linux/Unix machines as well as Mac or Windows platforms.
+Here we show installation of `pydca` in an ubuntu/debian machine. A similar procedure is used for other Linux/Unix machines as well as Mac or Windows platforms.
 ### Installing python3-tk
 ```bash
 $ sudo apt install python3-tk
 ```
 ### Create a virtual environment for Python3
-pydca depends python based libraries, e.g., *numpy*, *scipy*, *matplotlib*, or *biopython*. To avoid conflicts that can arise between different versions of these libraries, its recommended to install pydca separate from other global installations. Here, we use a separate virtual environment using [pipenv](https://docs.pipenv.org/en/latest/). To install *pipenv* use use *pip*. Thus, we need to install *pip*  for Python3.
+`pydca` depends on python based libraries, e.g., `numpy`, `scipy`, `matplotlib`, or `biopython`. To avoid conflicts that can arise between different versions of libraries, its recommended that we install `pydca`  separate from other global installations. Here, we use a separate virtual environment using [pipenv](https://docs.pipenv.org/en/latest/). To install `pipenv` use use `pip`. Thus, first we need to install `pip`  for `Python3`.
+
 ```bash
 $ sudo apt install python3-pip
 ```  
@@ -21,7 +22,7 @@ Now we can install pipenv as follows
 ```bash
 $ pip3 install pipenv
 ```
-Once `pipenv` is installed we can install pydca using pipenv. To demonstrate this, lets create a
+Once `pipenv` is installed we can install `pydca` using `pipenv`. To demonstrate this, lets create a
 directory called `demo` in, you can call it another name. We will create this directory in current user's `home` directory. Then, `cd` to this directory and install `pydca` using `pipenv`.
 ```bash
 $ mkdir demo && cd demo
@@ -35,13 +36,13 @@ Now we install pydca
 ```bash
 $ pipenv install pydca
 ```
-At this time, `pipenv` creates a virtual environment for us and installs pydca in this newly created virtual environment. After installation is completed `pipenv` has created two files in
+At this time, `pipenv` creates a virtual environment for us and installs `pydca` in this newly created virtual environment. After installation is completed `pipenv` has created two files in
 the directory `/home/mehari/demo`. We can see them as
 ```bash
 $ ls
 Pipfile  Pipfile.lock
 ```
-These files contain metadata about virtual environment. Now we can activate the virtual environment
+These files contain metadata about the virtual environment. Now we can activate the virtual environment
 ```bash
 $ pipenv shell
 Launching subshell in virtual environment…
@@ -97,3 +98,46 @@ usage: mfdca compute_di [-h] [--verbose] [--apc] [--seqid SEQID]
 ...................................................
 ```
 Finally, the current virtual environment can be deactivated using `exit` command.
+
+# Commonly used commands
+Information about the commands can be obtained using the `--help` optional argument from the command line.  Below is a summary of commonly used commands.
+To compute DCA scores measured by the direct information scores, one can execute
+```bash
+mfdca compute_di <biomolecue> <msa_file> --verbose
+```
+or the average product corrected (APC) values as,
+```bash
+mfdca  compute_di <biomolecule> <msa_file> --apc --verbose
+```
+We can also supply a FASTA formatted reference sequence file so that back-mapping is performed using,
+```bash
+mfdca compute_di <biomolecule> <msa_file> --refseq_file <refseq_file>  --verbose
+```
+To compute DCA scores measured by the Frobenius norm of the couplings,
+```bash
+mfda compute_fn <biomolecule> <msa_file> --verbose
+```
+or their the average product corrected (APC) scores,
+```bash
+mfdca compute_fn <biomolecule> <msa_file> --apc --verbose
+```
+To compute the `couplings` and `local fields` one can execute
+```bash
+mfdca compute_params <biomolecule> <msa_file>  --verbose
+```
+To compute the couplings alone
+```bash
+mfdca compute_couplings <biomolecule> <msa_file> --verbose
+```
+or the `local fields` only
+```bash
+mfdca compute_fields <biomolecule> <msa_file> --verbose 
+```
+To compute un-regularized single-site frequencies
+```bash
+mfdca compute_fi <biomolecue> <msa_file>  --pseudocount 0 --verbose
+```
+or pair-site frequencies
+```bash
+mfdca compute_fij <biomolecue> <msa_file> --pseudocount 0 --verbose
+```

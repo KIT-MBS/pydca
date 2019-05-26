@@ -70,6 +70,7 @@ class SequenceBackmapper:
             logger.error('\n\tPlease provide a reference sequence or a FASTA'
                 ' file containing a reference sequence')
             raise ValueError
+        self._validate_refseq()
 
         return None
 
@@ -121,6 +122,31 @@ class SequenceBackmapper:
         """
         describe = '<A sequence backmapper object of biomolecule type {}>'
         return describe.format(self.__biomolecule)
+
+
+    def _validate_refseq(self):
+        """Validate the reference sequence by checking if it contains gaps
+        or non-standard residues
+
+        Parameters
+        ----------
+            self : SequenceBackmapper
+                An instance of SequenceBackmapper class
+
+        Returns
+        -------
+            None : None
+        """
+        standard_res_plus_gap = fasta_reader.RES_TO_INT_ALL[self.__biomolecule].keys()
+        gap_symbols = ['-', '.', '~']
+        standard_residues = [
+            state for state in standard_res_plus_gap if state not in gap_symbols
+        ]
+        for res in self.__ref_sequence:
+            if res not in standard_residues:
+                logger.error('\n\tReference sequence should only contain standard residues')
+                raise ValueError
+        return None
 
 
     def _reference_sequence(self, refseq_file):

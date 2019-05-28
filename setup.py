@@ -13,7 +13,7 @@ requirements = [
 
 setup(
     name="pydca",
-    version="0.1",
+    version="0.2",
     author="Mehari B. Zerihun",
     author_email="mbzerihun@gmail.com",
     python_requires=">=3.5",
@@ -31,7 +31,6 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Development Status :: 4 - Beta",
-        "Environment :: Console",
     ],
     install_requires= requirements,
     tests_require = requirements,

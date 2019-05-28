@@ -7,7 +7,7 @@
 
 
 # Installing
-Here we show installation of `pydca` in an ubuntu/debian machine. A similar procedure is used for other Linux/Unix machines as well as Mac or Windows platforms.
+Here we show installation of `pydca` in a Linux (Ubuntu) machine. A similar procedure is used for other Linux/Unix machines as well as Mac or Windows platforms.
 ### Installing python3-tk
 ```bash
 $ sudo apt install python3-tk
@@ -23,21 +23,21 @@ Now we can install pipenv as follows
 $ pip3 install pipenv
 ```
 Once `pipenv` is installed we can install `pydca` using `pipenv`. To demonstrate this, lets create a
-directory called `demo` in, you can call it another name. We will create this directory in current user's `home` directory. Then, `cd` to this directory and install `pydca` using `pipenv`.
+directory called `demo`, you can call it another name. We will create this directory in current user's `home` directory. Then, `cd` to this directory and install `pydca` using `pipenv`.
 ```bash
 $ mkdir demo && cd demo
 ```
 We can see our current directory's path using `pwd` command.
 ```bash
 $ pwd
-$ /home/mehari/demo
+$ /home/username/demo
 ```
 Now we install pydca
 ```bash
 $ pipenv install pydca
 ```
 At this time, `pipenv` creates a virtual environment for us and installs `pydca` in this newly created virtual environment. After installation is completed `pipenv` has created two files in
-the directory `/home/mehari/demo`. We can see them as
+the directory `/home/username/demo`. We can see them as
 ```bash
 $ ls
 Pipfile  Pipfile.lock
@@ -46,10 +46,10 @@ These files contain metadata about the virtual environment. Now we can activate 
 ```bash
 $ pipenv shell
 Launching subshell in virtual environment…
-$  . /home/mehari/.local/share/virtualenvs/demo-HO4EpenA/bin/activate
+$  . /home/username/.local/share/virtualenvs/demo-HO4EpenA/bin/activate
 (demo) $
 ```
-The virtual environment is now activated. Lets check that we are executing Python from the virtual environment by starting python shell, importing `sys` module and executing `sys.executable`.
+The virtual environment is now activated. Lets check that we are executing Python from the virtual environment by starting Python shell, importing `sys` module and executing `sys.executable`.
 ```bash
 (demo) $ python
 Python 3.5.2 (default, Nov 12 2018, 13:43:14)
@@ -57,7 +57,7 @@ Python 3.5.2 (default, Nov 12 2018, 13:43:14)
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import sys
 >>> sys.executable
-'/home/mehari/.local/share/virtualenvs/demo-HO4EpenA/bin/python'
+'/home/username/.local/share/virtualenvs/demo-HO4EpenA/bin/python'
 >>>
 ```
 Lets exit the Python shell. We do this using the `exit()` command.
@@ -66,8 +66,8 @@ Lets exit the Python shell. We do this using the `exit()` command.
 (demo) $
 ```
 Now we are back in the virtual environment's shell.
-# Running DCA computation
-When `pydca` is installed, it provides main command called `mfdca`. Executing this command displays messages.
+# Running DCA Computation
+When `pydca` is installed, it provides a main command called `mfdca`. Executing this command displays  help messages.
 ```bash
 (demo) $ mfdca
 usage: mfdca [-h]
@@ -81,7 +81,7 @@ To compute DCA scores summarized by direct information score, we can execute
 (demo) $ mfdca compute_di <biomolecule> <msa_file>  --apc --verbose
 ```
 `<biomolecule>` takes either `protein` or `rna` (case insensitive). The `<msa_file>` is
-a FASTA formated multiple sequence alignment file. The optional argument `--apc` allows to make average product correction of DCA scores and  `--verbose` triggers
+a FASTA formated multiple sequence alignment file. The optional argument `--apc` allows to make average product correction (APC) of DCA scores and  `--verbose` triggers
 logging messages to be displayed on the screen as DCA computation progresses. Thus, an exaple of DCA computation for an MSA file `alignment.fa` containing protein sequences would be:
 ```bash
 (demo) $ mfdca compute_di protein alignment.fa --apc --verbose
@@ -99,45 +99,74 @@ usage: mfdca compute_di [-h] [--verbose] [--apc] [--seqid SEQID]
 ```
 Finally, the current virtual environment can be deactivated using `exit` command.
 
-# Commonly used commands
-Information about the commands can be obtained using the `--help` optional argument from the command line.  Below is a summary of commonly used commands.
-To compute DCA scores measured by the direct information scores, one can execute
+# Commonly Used Commands
+Information about the commands  and subcommands can be obtained using the `--help` optional argument from the command line.  Below is a summary of commonly used commands.
+##  Computing DCA Scores
+In `pydca` DCA scores can be computed from the direct information score or from the Frobenius norm of the couplings using the `compute_di` or `compute_fn` subcommands. Example:
 ```bash
-mfdca compute_di <biomolecue> <msa_file> --verbose
+$ mfdca compute_di <biomolecule> <msa_file> --verbose
 ```
-or the average product corrected (APC) values as,
+or
 ```bash
-mfdca  compute_di <biomolecule> <msa_file> --apc --verbose
+$ mfdca  compute_fn <biomolecule> <msa_file> --verbose
 ```
-We can also supply a FASTA formatted reference sequence file so that back-mapping is performed using,
+To compute the average product corrected DCA score, we can use the `--apc` optional argument. Example:
+
 ```bash
-mfdca compute_di <biomolecule> <msa_file> --refseq_file <refseq_file>  --verbose
+$ mfdca compute_di <biomolecule> <msa_file> --apc --verbose
 ```
-To compute DCA scores measured by the Frobenius norm of the couplings,
+We can also set the values of the relative pseudocount and sequence identity. The default values are 0.5 and 0.8, respectively.
+
 ```bash
-mfda compute_fn <biomolecule> <msa_file> --verbose
+$ mfdca  compute_di <biomolecule> <msa_file> --pseudocount 0.3 --seqid 0.9 --verbose
 ```
-or their the average product corrected (APC) scores,
+Furthermore, we can supply a FASTA formatted file containing a reference sequence so that DCA scores corresponding to residue pairs of that particular sequence are computed. Example:
+
 ```bash
-mfdca compute_fn <biomolecule> <msa_file> --apc --verbose
+$ mfdca compute_di <biomolecule> <msa_file> --refseq_file <refseq_file> --verbose
 ```
-To compute the `couplings` and `local fields` one can execute
+## Plotting Contact Maps or True Positive Rates
+
+Residue pairs ranked by DCA score can be visualized and compared with an existing PDB contact map. Example:
+
 ```bash
-mfdca compute_params <biomolecule> <msa_file>  --verbose
+$ mfdca plot_contact_map <biomolecule> <pdb_chain_id>  <pdb_file> <refseq_file> <dca_file> --linear_dist 5 --contact_dist 9.5 --num_dca_contacts 100 --verbose
 ```
-To compute the couplings alone
+In the above the optional argument `--linear_dist` filters out residue pairs that are not at least 5 residues apart in the sequence, `--contact_dist` sets the maximum distance (in Angstrom) between two residue pairs to be considered contacts in the PDB structure, and `--num_dca_contacts` sets the number of top DCA ranked residue pairs to be taken for contact map comparison. Two residues in a PDB structure are considered to be contacts if they have at least a pair of heavy atoms that are less than the distance set by `--contact_dist ` parameter.
+
+A similar command can be used to plot the true positive rates of DCA ranked residues pairs, except that there is no restriction on the number of DCA ranked pairs. Example:
+
 ```bash
-mfdca compute_couplings <biomolecule> <msa_file> --verbose
+$ mfdca plot_tp_rate <biomolecule> <pdb_chain_id> <pdb_file> <ref_seq_file> --linear_dist 5 --contact_dist 8.5 --verbose
 ```
-or the `local fields` only
+
+## Computing Couplings and Fields
+
+The couplings and fields can be computed in a single step or separately. To compute these parameters in one run we can use the `compute_params` subcommand. Example:
+
 ```bash
-mfdca compute_fields <biomolecule> <msa_file> --verbose 
+$ mfdca compute_params <biomolecule> <msa_file>  --pseudocount 0.4 --seqid 0.9 --verbose
 ```
-To compute un-regularized single-site frequencies
+
+or to compute the couplings alone
 ```bash
-mfdca compute_fi <biomolecue> <msa_file>  --pseudocount 0 --verbose
+$ mfdca compute_couplings <biomolecule> <msa_file> --pseudocount 0.4 --seqid 0.9 --verbose
 ```
-or pair-site frequencies
+and the fields
+
 ```bash
-mfdca compute_fij <biomolecue> <msa_file> --pseudocount 0 --verbose
+$ mfdca compute_fields <biomolecule> <msa_file> --pseudocount 0.3 --seqid  0.75 --verbose
+```
+
+## Computing Single- and Pair-site Frequencies
+
+By default `pydca` uses a relative pseudocount of 0.5 thus the frequencies are regularized. To compute non-regularized frequencies we need to set the pseudocount to zero. Example:
+
+ ```bash
+ $ mfdca compute_fi <biomolecule> <msa_file> --pseudocount 0 --verbose
+ ```
+The `compute_fi` subcommand computes single-site frequencies. To compute pair-site frequencies, we use the `compute_fij` subcommand.
+
+```bash
+$ mfdca compute_fij <biomolecule> <msa_file> --pseudocount 0 --verbrose
 ```

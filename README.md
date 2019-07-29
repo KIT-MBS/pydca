@@ -2,6 +2,7 @@
 `pydca` is a Python implementation of direct coupling analysis (DCA) of residue coevolution for protein and RNA sequence families using the **__mean-field__** and **__pseudolikelihood maximization__** algorithms. Given multiple sequence alignment (MSA) files in FASTA format, `pydca` computes the coevolutionary scores of pairs of sites in the alignment. In addition, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA. Furthermore, `pydca`  provides commands to compute the parameters of the energy function, compare and visualize contact map or true positive rates of DCA predicted residue pairs.
 
 # Prerequisites
+pydca is implemented mainly in Python3 with the pseudolikelihood maximization parameter inference part implemented using C++ back end for optimization. To install pydca and successfully carry out DCA computations, the following are required. 
 * Python3, version 3.5 or latter.
 * python3-tk
 * C++ compiler

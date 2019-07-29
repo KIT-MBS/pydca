@@ -4,6 +4,8 @@
 # Prerequisites
 * Python3, version 3.5 or latter.
 * python3-tk
+* C++ compiler
+* OpenMP
 
 
 # Installing

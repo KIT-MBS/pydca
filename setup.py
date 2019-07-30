@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 with open("README.md") as fh:
     long_description = fh.read()
@@ -10,6 +10,17 @@ requirements = [
     "numba==0.40.1",
     "matplotlib==3.0.3",
 ]
+
+plmdca_compile_args = ["-fopenmp"]
+plmdca_link_args = ["-fopenmp"]
+
+plmdca_ext = Extension(
+    'pydca.plmdca._plmdca',
+    ['pydca/plmdca/plmdca.cpp'],
+    extra_compile_args = plmdca_compile_args,
+    extra_link_args = plmdca_link_args,
+    language = "c++",
+)
 
 setup(
     name="pydca",
@@ -26,6 +37,7 @@ setup(
             "*.extras", "*.extras.*", "extras.*", "extras",
         ],
     ),
+    ext_modules = [plmdca_ext],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

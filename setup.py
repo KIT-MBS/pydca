@@ -40,6 +40,7 @@ setup(
     ext_modules = [plmdca_ext],
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: C++",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Development Status :: 4 - Beta",
@@ -49,6 +50,7 @@ setup(
     entry_points={
         "console_scripts":[
             "mfdca = pydca.main:run_meanfield_dca",
+            "plmdca = pydca.plmdca_main:run_plm_dca",
         ],
     },
     test_suite="tests",

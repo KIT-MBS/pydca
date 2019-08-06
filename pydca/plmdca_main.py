@@ -1,6 +1,7 @@
 from pydca.sequence_backmapper.sequence_backmapper import SequenceBackmapper
 from pydca.fasta_reader.fasta_reader import get_alignment_from_fasta_file
 from pydca.dca_utilities import dca_utilities
+import pydca.plmdca as _plmdca
 from argparse import ArgumentParser
 import ctypes 
 import logging
@@ -20,10 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 class PlmDCAException(Exception):
+    """Implements exceptions related to PlmDCA computation
     """
-    """
-
-
 
 class PlmDCA:
     """Wraps  the c++ implementation of plmDCA.
@@ -33,12 +32,16 @@ class PlmDCA:
         plmdca_so : str 
             Path to the plmDCA shared object created from the C++ source code
     """
-    plmdca_so = glob.glob('pydca/plmdca/*_plmdca*')
+    import pydca.plmdca.plmdca_location as _plmdca_loc
+    plmdca_so  = glob.glob(os.path.abspath(
+            os.path.join(os.path.dirname(_plmdca_loc.__file__), '_plmdca*'))
+    )
     try:
         plmdca_lib_path = os.path.abspath(plmdca_so[0])
     except IndexError:
         logger.error('\n\tUnable to find plmdca dynamic library path.' 
-                ' Are you running DCA computation before compilation?'
+                '\nAre you running  pydca as a module before installation?'
+                '\nIn this case you need to build the plmdca shared object.'
         )
         raise 
 
@@ -56,8 +59,16 @@ class PlmDCA:
         if self.__seqid <= 0 or self.__seqid > 1.0: 
             logger.error('\n\t{} is an invalid value of sequences identity (seqid) parameter'.format(self.__seqid))
             raise PlmDCAException 
-        self.__lambda_h=0.01 if lambda_h is None else lambda_h 
+        self.__lambda_h=0.01 if lambda_h is None else lambda_h
+        if self.__lambda_h < 0 :
+            logger.error('\n\tlambda_h must be a positive number. You passed lambda_h={}'.format(self.__lambda_h))
+            raise PlmDCAException  
         self.__lambda_J=0.01 if lambda_J is None else lambda_J
+        if self.__lambda_J < 0: 
+            logger.error('\n\tlambda_J must be a positive number. You passed lambda_J={}'.format(self.__lambda_J))
+            raise PlmDCAException
+
+
         
         log_message="""Created plmDCA instance with:
             biomolecule: {}
@@ -195,7 +206,9 @@ def execute_from_command_line(msa_file, biomolecule, seqid=None, lambda_h=None, 
             True or False. Determines if plmdca computation is done in verbose mode or not. 
     """
     if verbose : configure_logging()
-    plmdca_inst = get_plmdca_inst(msa_file, biomolecule, seqid=seqid)
+    plmdca_inst = get_plmdca_inst(msa_file, biomolecule, seqid=seqid, 
+        lambda_h=lambda_h, lambda_J=lambda_J, num_iter_steps=num_iter_steps
+    )
     plmdca_inst.test_plmdca()
     return None 
 
@@ -216,7 +229,7 @@ def run_plm_dca():
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args_dict = vars(args)
 
-    execute_from_command_line(args_dict.get('biomolecule'), args_dict.get('msa_file'),
+    execute_from_command_line(args_dict.get('msa_file'), args_dict.get('biomolecule'),
         seqid=args_dict.get('seqid'),
         lambda_h=args_dict.get('lambda_h'),
         lambda_J = args_dict.get('lambda_J'),

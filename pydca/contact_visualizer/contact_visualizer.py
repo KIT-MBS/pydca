@@ -9,6 +9,7 @@ from ..sequence_backmapper import scoring_matrix
 import os
 from collections import OrderedDict
 import itertools
+import requests 
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,15 @@ class PDBContent:
         -------
             None
         """
-        self.__pdb_file = pdb_file
+        # pdb_file may be just a PDB ID. We download it if it is a valid PDB ID.
+        if os.path.isfile(pdb_file):
+            self.__pdb_file = pdb_file 
+        else:
+            pdb_file_basename = os.path.basename(pdb_file)
+            if pdb_file_basename[0].isdigit():
+                if len(pdb_file_basename)==4:
+                    pdb_id = pdb_file_basename.upper()
+                    self.__pdb_file = self.download_pdb(pdb_id)
         if biomolecule is not None: biomolecule = biomolecule.strip().upper()
         if biomolecule:
             if biomolecule not in ('PROTEIN', 'RNA'):
@@ -205,34 +214,35 @@ class PDBContent:
 
 
     @staticmethod
-    def download_pdb(pdb_id, dest_dir=None):
+    def download_pdb(pdb_id):
         """Downloads a PDB file
 
         Parameters
         ----------
             pdb_id : str
                 The PDB identifier
-            dest_dir : str
-                Path to the destination directory where the downloaded file
-                is going to be saved. If not set, the default destination will
-                be as done by Bio.PDB, i.e., a directory in the current directory
-                is created using the PDB identifier (after stripping the leading
-                alpha-numeric character?)
 
         Returns
         -------
+            pdb_file_local_path : str 
+                Path to downloaded PDB file local path. Currently it is 
+                in the working directory. #TODO add a destination directory?
             None
         """
-
-        pdbl = Bio.PDB.PDBList()
-        logger.info('\n\tRetrieving PDB {}'.format(pdb_id))
-        if dest_dir is not None:
-            logger.info('\n\tPDB file destination: {}'.format(dest_dir))
-            pdbl.retrieve_pdb_file(pdb_id, pdir=dest_dir, file_format='pdb')
+        
+        pdb_file_url = 'https://files.rcsb.org/view/{}.pdb'.format(pdb_id)
+        logger.info('\n\tDownloading PDB file from: {}'.format(pdb_file_url))
+        try:
+            r = requests.get(pdb_file_url)
+        except Exception:
+            logger.error('\n\tProblem while downloading PDB file from: {}'.format(pdb_file_url)
+            )
+            raise
         else:
-            pdbl.retrieve_pdb_file(pdb_id, file_format='pdb')
-
-        return None
+            pdb_file_local_path = '{}_downloaded.pdb'.format(pdb_id)
+            with open(pdb_file_local_path, 'wb') as pdb_h:
+                pdb_h.write(r.content)
+        return pdb_file_local_path
 
 
     def extract_structure_info(self):

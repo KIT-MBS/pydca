@@ -130,10 +130,14 @@ class PDBContent:
             self.__pdb_file = pdb_file 
         else:
             pdb_file_basename = os.path.basename(pdb_file)
-            if pdb_file_basename[0].isdigit():
-                if len(pdb_file_basename)==4:
-                    pdb_id = pdb_file_basename.upper()
-                    self.__pdb_file = self.download_pdb(pdb_id)
+            if pdb_file_basename[0].isdigit() and len(pdb_file_basename)==4:
+                pdb_id = pdb_file_basename.upper()
+                self.__pdb_file = self.download_pdb(pdb_id)
+            else:
+                logger.error('\n\t{} represents neither a PDB file nor a valid PDB ID.'
+                    ' Please provide a valid PDB file or PDB ID'.format(pdb_file)
+                )
+                raise PDBContentException
         if biomolecule is not None: biomolecule = biomolecule.strip().upper()
         if biomolecule:
             if biomolecule not in ('PROTEIN', 'RNA'):

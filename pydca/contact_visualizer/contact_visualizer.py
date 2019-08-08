@@ -13,7 +13,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-STANDARED_RESIDUES = {
+STANDARD_RESIDUES = {
     'RNA' : ('A', 'C', 'G', 'U'),
 
     'PROTEIN':('ALA', 'ARG', 'ASN', 'ASP', 'CYS',
@@ -34,7 +34,7 @@ RES_THREE_CHAR_TO_ONE = {
     },
 }
 
-STANDARED_RESIDUES['PROTEIN_ONE_CHAR'] = tuple(
+STANDARD_RESIDUES['PROTEIN_ONE_CHAR'] = tuple(
     RES_THREE_CHAR_TO_ONE['PROTEIN'].values()
 )
 
@@ -55,7 +55,7 @@ def is_protein_sequence(the_sequence):
     """
     the_sequence = the_sequence.strip().upper()
     for res in the_sequence:
-        if res not in STANDARED_RESIDUES['PROTEIN_ONE_CHAR']:
+        if res not in STANDARD_RESIDUES['PROTEIN_ONE_CHAR']:
             return False
     return True
 
@@ -77,7 +77,7 @@ def is_rna_sequence(the_sequence):
     """
     the_sequence = the_sequence.strip().upper()
     for res in the_sequence:
-        if res not in STANDARED_RESIDUES['RNA']:
+        if res not in STANDARD_RESIDUES['RNA']:
             return False
     return True
 
@@ -330,16 +330,16 @@ class PDBContent:
 
         Returns
         -------
-            standared_residues : list
+            standard_residues : list
                 A lif of Biopython PDB structure standared residues (after hetro
                 atom residues are filtered).
         """
         biomolecule = biomolecule.strip().upper()
-        standared_residues = []
+        standard_residues = []
         for res in residues:
-            if res.get_resname().strip() in STANDARED_RESIDUES[biomolecule]:
-                if not res.id[0].strip(): standared_residues.append(res) # filter out hetro residues
-        return standared_residues
+            if res.get_resname().strip() in STANDARD_RESIDUES[biomolecule]:
+                if not res.id[0].strip(): standard_residues.append(res) # filter out hetro residues
+        return standard_residues
 
 
     @staticmethod
@@ -391,17 +391,17 @@ class PDBContent:
         for chain_id in chain_ids:
             all_residues =  model[chain_id].get_list()
             biomolecule = 'PROTEIN'
-            standared_residues = self.filter_residues(all_residues, biomolecule)
-            if not standared_residues:
+            standard_residues = self.filter_residues(all_residues, biomolecule)
+            if not standard_residues:
                 biomolecule = 'RNA'
-                standared_residues = self.filter_residues(all_residues, biomolecule)
-            if not standared_residues :
+                standard_residues = self.filter_residues(all_residues, biomolecule)
+            if not standard_residues :
                 logger.error('\n\tUnable to obtain standared residues'
                     ' for chain {} of the PDB file {}'.format(chain_id, self.__pdb_file)
                 )
                 raise PDBContentException
             res_id_list =  list()
-            for res in standared_residues:
+            for res in standard_residues:
                 res_id_list.append(res.get_resname().strip())
             current_seq = self.to_sequence(res_id_list, biomolecule)
             chain_seqs[chain_id] = (biomolecule, current_seq)
@@ -768,7 +768,7 @@ class RNASecStructContent:
         return secstruct_pairs
 
 
-class DCAContentException:
+class DCAContentException(Exception):
     """Used for raising exceptions related to data obtained from DCA file
     """
 
@@ -1313,17 +1313,17 @@ class DCAVisualizer:
         model = structure[0]
         chain = model[self.__pdb_chain_id]
         all_residues = chain.get_list()
-        standared_residues = self.__pdb_content.filter_residues(
+        standard_residues = self.__pdb_content.filter_residues(
             all_residues,
             self.__biomolecule,
         )
         mapping_key, residues_not_found_in_pdb = self.map_pdbseq_to_refseq()
         mapped_residues = dict()
-        num_residues = len(standared_residues)
+        num_residues = len(standard_residues)
         for i in range(num_residues - 1):
-            res_1 = standared_residues[i]
+            res_1 = standard_residues[i]
             for j in range(i + 1, num_residues):
-                res_2 = standared_residues[j]
+                res_2 = standard_residues[j]
                 min_atom_dist = 100000.0
                 # find the closest atom pair for the two residues
                 for atom_1, atom_2 in itertools.product(res_1, res_2):
@@ -1745,7 +1745,7 @@ class DCAVisualizer:
         fig, ax = plt.subplots(ncols=1, nrows=1)
         if missing_pairs:
             x_missing, y_missing = self.split_and_shift_contact_pairs(missing_pairs)
-            ax.scatter(y_missing, y_missing, s=6, color='blue')
+            ax.scatter(x_missing, y_missing, s=6, color='blue')
         x_true_positives, y_true_positives = self.split_and_shift_contact_pairs(
             true_positives,
         )

@@ -274,26 +274,51 @@ void printFields(const std::vector<std::vector<double>> & fields)
     }
 }
 
+std::vector<std::vector<std::vector<std::vector<double>>>> FourDimVecFactory(unsigned int vec_size_1, unsigned int vec_size_2, 
+    unsigned int vec_size_3, unsigned int vec_size_4)
+{
+    std::vector<double> fourth_dim_vec(vec_size_4);
+    std::vector<std::vector<double>> third_dim_vec(vec_size_3, fourth_dim_vec);
+    std::vector<std::vector<std::vector<double>>> second_dim_vec(vec_size_2, third_dim_vec);
+    std::vector<std::vector<std::vector<std::vector<double>>>> the_vector(vec_size_1, second_dim_vec);
+    return the_vector;
+}
 
 // Couplings initializer 
-std::vector<std::vector<double>> initCouplings(const unsigned int seqs_len, 
+std::vector<std::vector<std::vector<std::vector<double>>>> initCouplings(const unsigned int seqs_len, 
     const unsigned int num_site_states)
-{   
-    std::vector<std::vector<double>> couplings;
-    const unsigned int num_unique_site_pairs = (seqs_len * (seqs_len -1))/2;
-    const unsigned int num_residue_pairs = num_site_states * num_site_states;
-    for(unsigned int i = 0; i < num_unique_site_pairs; ++i){
-        for(unsigned int res_a = 0; res_a < num_site_states; ++res_a){
-            for(unsigned int res_b = 0; res_b < num_site_states; ++res_b){
-                //couplings[i][j][k] = (num_site_states*num_site_states)/(double)seqs_len;
-                //TODO
+{  
+   auto couplings = FourDimVecFactory(seqs_len, seqs_len, num_site_states, num_site_states);
+    for(unsigned int i = 0; i < seqs_len; ++i){
+        for(unsigned int j = 0 ; j < seqs_len; ++j){
+            for(unsigned int a = 0; a < num_site_states; ++a){
+                for(unsigned int b = 0; b < num_site_states; ++b){
+                    couplings[i][j][a][b] =  i==j? 0.0 : (double)(num_site_states * num_site_states)/(double)seqs_len;
+                }
+            }
+        }
+
+    }
+    return couplings; 
+}
+
+
+//print couplings
+void printCouplings(std::vector<std::vector<std::vector<std::vector<double>>>> const& couplings)
+{
+    auto seqs_len = couplings[0].size();
+    auto num_site_states = couplings[0][0][0].size();
+    for(unsigned int i = 0; i < seqs_len - 1; ++i){
+        for(unsigned int j = 0; j < seqs_len; ++j){
+            for(unsigned int a = 0; a < num_site_states; ++a)
+            {
+                for(unsigned int b = 0;  b < num_site_states; ++b){
+                    std::cout << i << " " << j << " " << a << " " << b << " " <<  couplings[i][j][a][b] << std::endl;
+                }
             }
         }
     }
-    return couplings; 
-
 }
-
 
 void computeParams(std::vector<std::vector<double>>  & fields, 
     std::vector<std::vector<std::vector<std::vector<double>>>> & couplings)
@@ -329,6 +354,8 @@ extern "C" double* plmdcaBackend(const unsigned int biomolecule, unsigned int nu
     //std::cout << "Fields shape: (" << fields.size() << ", " << fields[0].size()<< ")" << std::endl;
     //printFields(fields);
     computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+    auto couplings = initCouplings(seqs_len, num_site_states);
+    printCouplings(couplings);
     double * data_to_python = new double[seqs_len];
     for(unsigned int  i = 0; i < seqs_len; ++i) data_to_python[i] = 5.0 * i;
     std::cout << "***********--PLMDCA BACKEND--**************" << std::endl;

@@ -1,108 +1,17 @@
+from pydca.plmdca import plmdca 
 from pydca.sequence_backmapper.sequence_backmapper import SequenceBackmapper
 from pydca.fasta_reader.fasta_reader import get_alignment_from_fasta_file
 from pydca.dca_utilities import dca_utilities
-import pydca.plmdca as _plmdca
 from argparse import ArgumentParser
-import ctypes 
 import logging
 import sys
-import os
-import glob 
 
 
-"""Implements Python wrapper for the plmDCA implemented in c++. In addition,
-it defines command line interface to carry out DCA computation using the 
-pseudolikelihood maximization algorithm.
+"""Top level module for plmDCA. Defines command line interface and 
+configures logging.
 
 Author: Mehari B. Zerihun
 """
-
-logger = logging.getLogger(__name__)
-
-
-class PlmDCAException(Exception):
-    """Implements exceptions related to PlmDCA computation
-    """
-
-class PlmDCA:
-    """Wraps  the c++ implementation of plmDCA.
-
-    Attributes
-    ----------
-        plmdca_so : str 
-            Path to the plmDCA shared object created from the C++ source code
-    """
-    import pydca.plmdca.plmdca_location as _plmdca_loc
-    plmdca_so  = glob.glob(os.path.abspath(
-            os.path.join(os.path.dirname(_plmdca_loc.__file__), '_plmdca*'))
-    )
-    try:
-        plmdca_lib_path = os.path.abspath(plmdca_so[0])
-    except IndexError:
-        logger.error('\n\tUnable to find plmdca dynamic library path.' 
-                '\nAre you running  pydca as a module before installation?'
-                '\nIn this case you need to build the plmdca shared object.'
-        )
-        raise 
-
-
-    def __init__(self, msa_len, biomolecule, seqid=None, lambda_h=None, 
-            lambda_J=None, num_iter_steps=None):
-        """Initilizes plmdca instances
-        """
-
-        self.__biomolecule = biomolecule.strip().upper()
-        self.__plmdca = ctypes.CDLL(self.plmdca_lib_path)
-        self.__msa_len = msa_len 
-        self.__num_dca_pairs = int(msa_len * (msa_len  - 1) / 2)
-        self.__seqid = 0.8 if seqid is None else seqid 
-        if self.__seqid <= 0 or self.__seqid > 1.0: 
-            logger.error('\n\t{} is an invalid value of sequences identity (seqid) parameter'.format(self.__seqid))
-            raise PlmDCAException 
-        self.__lambda_h=0.01 if lambda_h is None else lambda_h
-        if self.__lambda_h < 0 :
-            logger.error('\n\tlambda_h must be a positive number. You passed lambda_h={}'.format(self.__lambda_h))
-            raise PlmDCAException  
-        self.__lambda_J=0.01 if lambda_J is None else lambda_J
-        if self.__lambda_J < 0: 
-            logger.error('\n\tlambda_J must be a positive number. You passed lambda_J={}'.format(self.__lambda_J))
-            raise PlmDCAException
-
-
-        
-        log_message="""Created plmDCA instance with:
-            biomolecule: {}
-            MSA sequence length: {}
-            sequence identity: {}
-            lambda_h: {}
-            lambda_J: {}
-        """.format(self.__biomolecule, self.__msa_len, self.__seqid, self.__lambda_h, self.__lambda_J)
-        logger.info(log_message)
-        return None  
-
-    
-    def test_plmdca(self):
-        """Tests plmDCA computation
-        """
-        self.__test_plmdca = self.__plmdca.test_plmdca 
-        self.__test_plmdca.argtypes = (ctypes.c_uint, )
-        self.__test_plmdca.restype = ctypes.POINTER(ctypes.c_double * self.__num_dca_pairs)
-        # Get scores
-        dca_scores_ptr = self.__test_plmdca(self.__msa_len)
-        dca_scores  = [ score for score in dca_scores_ptr.contents ]
-        counter = 0
-        for i in range(self.__msa_len -1):
-            for j in range(i + 1, self.__msa_len):
-                print('pair:({}, {}) : {}'.format(i, j, dca_scores[counter]))
-                counter += 1
-        # Free memory  
-        self.__free_dca_scores_cont = self.__plmdca.free_dca_scores_cont 
-        self.__free_dca_scores_cont.argtypes = (ctypes.POINTER(ctypes.c_double * self.__num_dca_pairs), )
-        self.__free_dca_scores_cont.restypes = None 
-        self.__free_dca_scores_cont(dca_scores_ptr)
-        return None
-# End of PlmDCA class definition 
-
 
 def configure_logging():
     """Configures logging. When configured, the logging level is INFO and
@@ -145,13 +54,13 @@ class CmdArgs:
     lambda_h_optional_help = 'Value of fields penalizing constant'
     lambda_J_optional = '--lambda_J'
     lambda_J_optional_help = 'Value of couplings penalizing constant'
-    num_iter_steps_optional = '--num_iter_steps'
+    num_iter_steps_optional = '--num_iterations'
     num_iter_steps_optional_help = 'Number of pseudolikelihood maximization iteration steps'
 # end of class CmdArgs 
 
 
-def get_plmdca_inst(msa_file, biomolecule, seqid=None, lambda_h=None, lambda_J=None, 
-        num_iter_steps=None):
+def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=None, 
+        num_iterations=None):
     """Creates a PlmDCA instance and returns it.
 
     Parameters
@@ -174,18 +83,15 @@ def get_plmdca_inst(msa_file, biomolecule, seqid=None, lambda_h=None, lambda_J=N
         plmdca_inst : PlmDCA 
             An instance of PlmDCA class
     """
-    # get alignment length from MSA
-    alignment = get_alignment_from_fasta_file(msa_file)
-    msa_len = len(alignment[0])
-    plmdca_inst = PlmDCA(msa_len, biomolecule, 
+    plmdca_inst = plmdca.PlmDCA(biomolecule, msa_file, 
         seqid=seqid, lambda_h=lambda_h, 
-        lambda_J=lambda_J, num_iter_steps=num_iter_steps,
+        lambda_J=lambda_J, num_iterations = num_iterations,
     )
     return plmdca_inst 
 
 
-def execute_from_command_line(msa_file, biomolecule, seqid=None, lambda_h=None, lambda_J=None,
-        num_iter_steps=None, verbose=False):
+def execute_from_command_line(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=None,
+        num_iterations=None, verbose=False):
     """Runs plmdca computation from the command line.
 
     Parameters
@@ -206,10 +112,10 @@ def execute_from_command_line(msa_file, biomolecule, seqid=None, lambda_h=None, 
             True or False. Determines if plmdca computation is done in verbose mode or not. 
     """
     if verbose : configure_logging()
-    plmdca_inst = get_plmdca_inst(msa_file, biomolecule, seqid=seqid, 
-        lambda_h=lambda_h, lambda_J=lambda_J, num_iter_steps=num_iter_steps
+    plmdca_inst = get_plmdca_inst(biomolecule, msa_file, seqid=seqid, 
+        lambda_h=lambda_h, lambda_J=lambda_J, num_iterations = num_iterations
     )
-    plmdca_inst.test_plmdca()
+    plmdca_inst.compute_params()
     return None 
 
 
@@ -229,11 +135,11 @@ def run_plm_dca():
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args_dict = vars(args)
 
-    execute_from_command_line(args_dict.get('msa_file'), args_dict.get('biomolecule'),
+    execute_from_command_line(args_dict.get('biomolecule'),args_dict.get('msa_file'), 
         seqid=args_dict.get('seqid'),
         lambda_h=args_dict.get('lambda_h'),
         lambda_J = args_dict.get('lambda_J'),
-        num_iter_steps = args_dict.get('num_iter_steps'),
+        num_iterations = args_dict.get('num_iterations'),
         verbose = args_dict.get('verbose'),
     )
     return None 

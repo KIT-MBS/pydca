@@ -155,6 +155,7 @@ std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(const st
         seqs_binary_form.emplace_back(current_seq_binary_form);
         current_seq_binary_form.clear();
     }
+    seqs_binary_form.shrink_to_fit();
     return seqs_binary_form;
 }
 
@@ -193,11 +194,9 @@ std::vector<double> computeSequencesWeight(const unsigned int biomolecule, std::
     }
 
     // "Normalize" sequences weight 
-    for(unsigned int i=0; i < num_sequences; ++i) {
+    for(unsigned int i=0; i < num_sequences; ++i){
         seqs_weight[i] = 1.0/seqs_weight[i];
-        std::cout << "weight seq " << i << " " << seqs_weight[i] << " ";
     }
-    std::cout << std::endl;
     return seqs_weight;
 }
 
@@ -223,7 +222,6 @@ std::vector<std::vector<double>> computeWeightedSingleSiteFreqs(std::vector<std:
     std::vector<double> current_site_freqs(num_site_states);
     double freq_ia;
     for(unsigned int i = 0; i < seqs_len; ++i){
-        std::cout << "site " << i + 1 << std::endl;
         for(unsigned int j = 0; j < num_site_states; ++j){
             freq_ia = 0.0;
             for(unsigned int k = 0; k < num_seqs; ++k){
@@ -231,23 +229,10 @@ std::vector<std::vector<double>> computeWeightedSingleSiteFreqs(std::vector<std:
             }
             freq_ia /= eff_num_seqs;
             current_site_freqs[j] = freq_ia;
-            std::cout << freq_ia << ", ";  
         }
-        single_site_freqs.emplace_back(current_site_freqs);   
-        std::cout << std::endl;
+        single_site_freqs.emplace_back(current_site_freqs);
     }
     return single_site_freqs;
-}
-
-
-//compute pair-site frequencies 
-std::vector<std::vector<std::vector<std::vector<double>>>> computeWeightedPairSiteFreqs(
-    std::vector<std::vector<unsigned int>> const& seqs_int_form,std::vector<double> const& weights, 
-    const unsigned int num_site_states)
-{
-    std::vector<std::vector<std::vector<std::vector<double>>>> pair_site_freqs;
-    
-    return pair_site_freqs;
 }
 
 // Fields initializer
@@ -257,6 +242,7 @@ std::vector<std::vector<double>> initFields(const unsigned int seqs_len, const u
     std::vector<double> current_site_fields(num_site_states);
     for(unsigned int i = 0; i < num_site_states; ++i) current_site_fields[i] = 1.0/(double)num_site_states;
     for(unsigned int i = 0; i < seqs_len; ++i) fields.emplace_back(current_site_fields);
+    fields.shrink_to_fit();
     return fields;
 
 }
@@ -274,7 +260,7 @@ void printFields(const std::vector<std::vector<double>> & fields)
     }
 }
 
-std::vector<std::vector<std::vector<std::vector<double>>>> FourDimVecFactory(unsigned int vec_size_1, unsigned int vec_size_2, 
+std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(unsigned int vec_size_1, unsigned int vec_size_2, 
     unsigned int vec_size_3, unsigned int vec_size_4)
 {
     std::vector<double> fourth_dim_vec(vec_size_4);
@@ -288,7 +274,7 @@ std::vector<std::vector<std::vector<std::vector<double>>>> FourDimVecFactory(uns
 std::vector<std::vector<std::vector<std::vector<double>>>> initCouplings(const unsigned int seqs_len, 
     const unsigned int num_site_states)
 {  
-   auto couplings = FourDimVecFactory(seqs_len, seqs_len, num_site_states, num_site_states);
+   auto couplings = fourDimVecFactory(seqs_len, seqs_len, num_site_states, num_site_states);
     for(unsigned int i = 0; i < seqs_len; ++i){
         for(unsigned int j = 0 ; j < seqs_len; ++j){
             for(unsigned int a = 0; a < num_site_states; ++a){
@@ -320,6 +306,41 @@ void printCouplings(std::vector<std::vector<std::vector<std::vector<double>>>> c
     }
 }
 
+//compute weighted pair site frequencies 
+std::vector<std::vector<std::vector<std::vector<double>>>> computeWeightedPairSiteFreqs(
+    std::vector<std::vector<unsigned int>> const& seqs_int_form, 
+    std::vector<double> const& weights, unsigned int num_site_states)
+{
+    auto eff_num_seqs = computeEffectiveNumSeqs(weights);
+    auto num_seqs = seqs_int_form.size();
+    auto seqs_len = seqs_int_form[0].size();
+    auto pair_site_freqs = fourDimVecFactory(seqs_len, seqs_len, num_site_states, num_site_states);
+    double freq_ij_ab;
+    for(unsigned int i = 0; i < seqs_len; ++i){
+        for(unsigned int j = 0; j < seqs_len; ++j){
+            for(unsigned int a = 0;  a < num_site_states; ++a){
+                for(unsigned int b = 0; b < num_site_states; ++b){
+                    freq_ij_ab = 0.0;
+                    for(unsigned int k = 0; k < num_seqs; ++k){
+                        if(seqs_int_form[k][i] == a + 1 && seqs_int_form[k][j] == b + 1) freq_ij_ab += weights[k];
+                    }
+                    pair_site_freqs[i][j][a][b] = freq_ij_ab/eff_num_seqs;
+                }
+            }
+        }
+    }
+    return pair_site_freqs;
+}
+
+
+//print pair-site frequencies
+void printPairSiteFreqs(std::vector<std::vector<std::vector<std::vector<double>>>> const& pair_site_freqs)
+{
+    auto seqs_len = pair_site_freqs.size();
+    auto num_site_states = pair_site_freqs[0][0][0].size();
+}
+
+
 void computeParams(std::vector<std::vector<double>>  & fields, 
     std::vector<std::vector<std::vector<std::vector<double>>>> & couplings)
 { 
@@ -348,14 +369,15 @@ extern "C" double* plmdcaBackend(const unsigned int biomolecule, unsigned int nu
     std::cout << "Number of site states: " << num_site_states << std::endl;
     std::cout << "Biomolecule: " << biomolecule << std::endl;
     auto seqs_int_form = getSequencesIntForm(biomolecule, msa_file);
-    auto seqs_binary_form = sequencesBinaryForm(seqs_int_form, num_site_states);
+    //auto seqs_binary_form = sequencesBinaryForm(seqs_int_form, num_site_states);
     //printSeqsBinaryState(seqs_binary_form);
-    auto fields = initFields(seqs_len, num_site_states);
+    //auto fields = initFields(seqs_len, num_site_states);
     //std::cout << "Fields shape: (" << fields.size() << ", " << fields[0].size()<< ")" << std::endl;
     //printFields(fields);
-    computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
-    auto couplings = initCouplings(seqs_len, num_site_states);
-    printCouplings(couplings);
+    //computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+    //auto couplings = initCouplings(seqs_len, num_site_states);
+    //printCouplings(couplings);
+    computeWeightedPairSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
     double * data_to_python = new double[seqs_len];
     for(unsigned int  i = 0; i < seqs_len; ++i) data_to_python[i] = 5.0 * i;
     std::cout << "***********--PLMDCA BACKEND--**************" << std::endl;

@@ -14,7 +14,7 @@
     Authors:
 */
 
-void printSeqsBinaryState(const std::vector<std::vector<std::vector<unsigned int>>> & seqs_binary_form)
+void printSeqsBinaryState(std::vector<std::vector<std::vector<unsigned int>>> const& seqs_binary_form)
 {
     /* 
     Prints elements of sequences that are in binary form. 
@@ -40,8 +40,9 @@ void printSeqsBinaryState(const std::vector<std::vector<std::vector<unsigned int
     }
 }
 
+
 // obtain sequences length from FASTA file
-unsigned int getSequencesLength(std::string msa_file)
+unsigned int getSequencesLength(std::string const& msa_file)
 {
     unsigned int seqs_len=0;
     std::ifstream msa_file_stream(msa_file);
@@ -61,7 +62,7 @@ unsigned int getSequencesLength(std::string msa_file)
 
 
 // put sequences in integer representation 
-std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int biomolecule, const std::string  msa_file)
+std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int biomolecule, std::string const&  msa_file)
 {
     std::unordered_map<char, unsigned int> res_mapping;
     if(biomolecule==1){
@@ -129,14 +130,14 @@ std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int bi
             line_counter++;           
         }
     }
-    std::cout << "Total number of sequences found: " << line_counter << std::endl;
+    std::cout << __PRETTY_FUNCTION__<< " Total number of sequences found: " << line_counter << std::endl;
     return seqs_int_form;
 }
 
 
 // Write sequences in binary form
-std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(const std::vector<std::vector<unsigned int>> & seqs_int_form, 
-    const unsigned int num_site_states)
+std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(std::vector<std::vector<unsigned int>> const& seqs_int_form, 
+    unsigned int const num_site_states)
 {
     std::vector<std::vector<std::vector<unsigned int>>> seqs_binary_form;
     auto seqs_len = seqs_int_form[0].size();
@@ -152,6 +153,7 @@ std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(const st
             }
             current_seq_binary_form.emplace_back(site_full_state);
         }
+        current_seq_binary_form.shrink_to_fit();
         seqs_binary_form.emplace_back(current_seq_binary_form);
         current_seq_binary_form.clear();
     }
@@ -160,12 +162,12 @@ std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(const st
 }
 
 //compute sequences weigth
-std::vector<double> computeSequencesWeight(const unsigned int biomolecule, std::string msa_file, double seqid)
+std::vector<double> computeSequencesWeight(unsigned int const biomolecule, std::vector<std::vector<unsigned int>> const& seqs_int_form, 
+    double const seqid)
 {   
     /* 
     Computes the "normalized" weight of sequnces. 
     */
-    auto seqs_int_form = getSequencesIntForm(biomolecule, msa_file);
     auto num_sequences = seqs_int_form.size();
     auto seqs_len = seqs_int_form[0].size();
     std::vector<double> seqs_weight(num_sequences);
@@ -202,7 +204,6 @@ std::vector<double> computeSequencesWeight(const unsigned int biomolecule, std::
 
 
 //compute effective number of sequences
-
 double computeEffectiveNumSeqs(std::vector<double> const& seqs_weight)
 {
     double eff_num_seqs = 0.0;
@@ -213,7 +214,7 @@ double computeEffectiveNumSeqs(std::vector<double> const& seqs_weight)
 
 //compute single site frequencies
 std::vector<std::vector<double>> computeWeightedSingleSiteFreqs(std::vector<std::vector<unsigned int>> const& seqs_int_form, 
-    std::vector<double> const& weights, const unsigned int num_site_states)
+    std::vector<double> const& weights, unsigned int const num_site_states)
 {
     std::vector<std::vector<double>> single_site_freqs;
     auto num_seqs = seqs_int_form.size();
@@ -232,11 +233,13 @@ std::vector<std::vector<double>> computeWeightedSingleSiteFreqs(std::vector<std:
         }
         single_site_freqs.emplace_back(current_site_freqs);
     }
+    single_site_freqs.shrink_to_fit();
     return single_site_freqs;
 }
 
+
 // Fields initializer
-std::vector<std::vector<double>> initFields(const unsigned int seqs_len, const unsigned int num_site_states)
+std::vector<std::vector<double>> initFields(unsigned int const seqs_len, unsigned int const num_site_states)
 {
     std::vector<std::vector<double>> fields;
     std::vector<double> current_site_fields(num_site_states);
@@ -247,7 +250,7 @@ std::vector<std::vector<double>> initFields(const unsigned int seqs_len, const u
 
 }
 
-void printFields(const std::vector<std::vector<double>> & fields)
+void printFields(std::vector<std::vector<double>> const& fields)
 {
     auto seqs_len = fields.size();
     auto num_site_states = fields[0].size();
@@ -260,8 +263,9 @@ void printFields(const std::vector<std::vector<double>> & fields)
     }
 }
 
-std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(unsigned int vec_size_1, unsigned int vec_size_2, 
-    unsigned int vec_size_3, unsigned int vec_size_4)
+// factory function for couplings vector and pair-site frequencies vector
+std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(unsigned int const vec_size_1, unsigned int const vec_size_2, 
+    unsigned int const vec_size_3, unsigned int const vec_size_4)
 {
     std::vector<double> fourth_dim_vec(vec_size_4);
     std::vector<std::vector<double>> third_dim_vec(vec_size_3, fourth_dim_vec);
@@ -271,8 +275,8 @@ std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(uns
 }
 
 // Couplings initializer 
-std::vector<std::vector<std::vector<std::vector<double>>>> initCouplings(const unsigned int seqs_len, 
-    const unsigned int num_site_states)
+std::vector<std::vector<std::vector<std::vector<double>>>> initCouplings(unsigned int const seqs_len, 
+    unsigned int const num_site_states)
 {  
    auto couplings = fourDimVecFactory(seqs_len, seqs_len, num_site_states, num_site_states);
     for(unsigned int i = 0; i < seqs_len; ++i){
@@ -306,10 +310,11 @@ void printCouplings(std::vector<std::vector<std::vector<std::vector<double>>>> c
     }
 }
 
+
 //compute weighted pair site frequencies 
 std::vector<std::vector<std::vector<std::vector<double>>>> computeWeightedPairSiteFreqs(
     std::vector<std::vector<unsigned int>> const& seqs_int_form, 
-    std::vector<double> const& weights, unsigned int num_site_states)
+    std::vector<double> const& weights, unsigned int const num_site_states)
 {
     auto eff_num_seqs = computeEffectiveNumSeqs(weights);
     auto num_seqs = seqs_int_form.size();
@@ -338,46 +343,46 @@ void printPairSiteFreqs(std::vector<std::vector<std::vector<std::vector<double>>
 {
     auto seqs_len = pair_site_freqs.size();
     auto num_site_states = pair_site_freqs[0][0][0].size();
+    for(unsigned int i = 0; i < seqs_len; ++i){
+        for(unsigned int j = 0; j < seqs_len; ++j){
+            std::cout << "site-pair: "<< i << " " << j << std::endl;
+            for(unsigned int a = 0; a < num_site_states; ++a){
+                for(unsigned int b = 0; b < num_site_states; ++b){
+                    std::cout << "res-pair: " << a << " " << b << std::endl;
+                    std::cout << pair_site_freqs[i][j][a][b] << std::endl;
+                }
+            }
+        }
+    }
 }
 
-
-void computeParams(std::vector<std::vector<double>>  & fields, 
-    std::vector<std::vector<std::vector<std::vector<double>>>> & couplings)
-{ 
-    std::cout << "computing fileds and couplings" << std::endl;
-}
-
-extern "C" double* plmdcaBackend(const unsigned int biomolecule, unsigned int num_site_states, const char* msa_file, 
-    const unsigned int seqs_len, const double seqid, const double lambda_h, const double lambda_J, int num_iter_steps)
+//estimate couplings and fields
+extern "C" double* plmdcaBackend(unsigned int const biomolecule, unsigned int const num_site_states, const char* msa_file, 
+    unsigned int const seqs_len, double const seqid, double const lambda_h, double const lambda_J, unsigned int const max_iteration)
 {  
-    /*
-    The plmDCA main function. This function provides interface beteween the c++ 
-    backend and the Python PlmDCA class. The arguments for this function are 
-    attributes of the PlmDCA class.
-    */ 
-    std::cout << "***********--PLMDCA BACKEND--************" << std::endl;
-    auto seqs_weight = computeSequencesWeight(biomolecule, msa_file, seqid);
-    double eff_num_seqs = 0.0;
-    for(unsigned int i=0; i < seqs_weight.size(); ++i) eff_num_seqs += seqs_weight[i];
-    //for(unsigned int i = 0; i < seqs_weight.size(); ++i) std::cout << i << "\t" << seqs_weight[i] << std::endl;
-    std::cout << "Effective number of sequences: " << eff_num_seqs << std::endl;
-    //std::cout << "seqs_int_form vector size: " << seqs_int_form.size() << std::endl;
-    std::cout << "plmDCA parameters" << std::endl;
-    std::cout << "Sequences length:" << seqs_len << std::endl;
-    std::cout << "lambda_h: " << lambda_h << std::endl;
-    std::cout << "lamdba_J: " << lambda_J << std::endl;
-    std::cout << "Number of site states: " << num_site_states << std::endl;
-    std::cout << "Biomolecule: " << biomolecule << std::endl;
+    std::cout << "**********--PLMDCA BACKEND--**************" << std::endl;
+    auto couplings = initCouplings(seqs_len, num_site_states);
+    auto fields = initFields(seqs_len, num_site_states);
     auto seqs_int_form = getSequencesIntForm(biomolecule, msa_file);
-    //auto seqs_binary_form = sequencesBinaryForm(seqs_int_form, num_site_states);
-    //printSeqsBinaryState(seqs_binary_form);
-    //auto fields = initFields(seqs_len, num_site_states);
-    //std::cout << "Fields shape: (" << fields.size() << ", " << fields[0].size()<< ")" << std::endl;
-    //printFields(fields);
-    //computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
-    //auto couplings = initCouplings(seqs_len, num_site_states);
-    //printCouplings(couplings);
-    computeWeightedPairSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+    auto seqs_weight = computeSequencesWeight(biomolecule, seqs_int_form, seqid);
+    auto single_site_freqs = computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+    auto pair_site_freqs = computeWeightedPairSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+
+    //we do not need the sequences and weights hereafter. Set their capacity to zero to free memory.
+    {
+        seqs_int_form.clear(); 
+        std::vector<std::vector<unsigned int>>().swap(seqs_int_form);
+        seqs_weight.clear();
+        std::vector<double>().swap(seqs_weight);
+    }
+
+    //carry out gradient decent to compute couplings and fields 
+    for(unsigned int current_step = 0; current_step < max_iteration; ++current_step){
+        //update fields
+        //update couplings
+    }
+    
+    // data to be returned to Python
     double * data_to_python = new double[seqs_len];
     for(unsigned int  i = 0; i < seqs_len; ++i) data_to_python[i] = 5.0 * i;
     std::cout << "***********--PLMDCA BACKEND--**************" << std::endl;

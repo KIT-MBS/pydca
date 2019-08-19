@@ -73,41 +73,31 @@ std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int bi
         'S': 16, 'T': 17, 'V': 18, 'W':19, 'Y':20,
         '-':21, '.':21, '~':21,
     */
-        res_mapping['A'] = 1;
-        res_mapping['C'] = 2;
-        res_mapping['D'] = 3;
-        res_mapping['E'] = 4;
-        res_mapping['F'] = 5;
-        res_mapping['G'] = 6;
-        res_mapping['H'] = 7;
-        res_mapping['I'] = 8;
-        res_mapping['K'] = 9;
-        res_mapping['L'] = 10;
-        res_mapping['M'] = 11;
-        res_mapping['N'] = 12;
-        res_mapping['P'] = 13;
-        res_mapping['Q'] = 14;
-        res_mapping['R'] = 15;
-        res_mapping['S'] = 16;
-        res_mapping['T'] = 17;
-        res_mapping['V'] = 18;
-        res_mapping['W'] = 19;
-        res_mapping['Y'] = 20;
-        res_mapping['-'] = 21;
-        res_mapping['.'] = 21;
-        res_mapping['~'] = 21;
+        res_mapping['A'] = 1; res_mapping['C'] = 2; res_mapping['D'] = 3;
+        res_mapping['E'] = 4; res_mapping['F'] = 5; res_mapping['G'] = 6;
+        res_mapping['H'] = 7; res_mapping['I'] = 8; res_mapping['K'] = 9;
+        res_mapping['L'] = 10; res_mapping['M'] = 11; res_mapping['N'] = 12;
+        res_mapping['P'] = 13; res_mapping['Q'] = 14; res_mapping['R'] = 15;
+        res_mapping['S'] = 16; res_mapping['T'] = 17; res_mapping['V'] = 18;
+        res_mapping['W'] = 19; res_mapping['Y'] = 20; res_mapping['-'] = 21;
+        res_mapping['.'] = 21; res_mapping['~'] = 21; res_mapping['B'] = 21;
+        res_mapping['J'] = 21; res_mapping['O'] = 21; res_mapping['U'] = 21;
+        res_mapping['X'] = 21; res_mapping['Z'] = 21;
     }else{
     /* RNA residues mapping
         'A':1, 'C':2, 'G':3, 'U':4, '-':5, '.':5, '~':5
     */
-       res_mapping['A'] = 1;
-       res_mapping['C'] = 2;
-       res_mapping['G'] = 3;
-       res_mapping['U'] = 4;
-       res_mapping['-'] = 5;
-       res_mapping['~'] = 5;
-       res_mapping['.'] = 5;
-    }
+       res_mapping['A'] = 1; res_mapping['C'] = 2; res_mapping['G'] = 3;
+       res_mapping['U'] = 4; res_mapping['-'] = 5; res_mapping['~'] = 5;
+       res_mapping['.'] = 5; res_mapping['B'] = 5; res_mapping['D'] = 5;
+       res_mapping['E'] = 5; res_mapping['F'] = 5; res_mapping['H'] = 5;
+       res_mapping['I'] = 5; res_mapping['J'] = 5; res_mapping['K'] = 5;
+       res_mapping['L'] = 5; res_mapping['M'] = 5; res_mapping['N'] = 5;
+       res_mapping['O'] = 5; res_mapping['P'] = 5; res_mapping['Q'] = 5;
+       res_mapping['R'] = 5; res_mapping['S'] = 5; res_mapping['T'] = 5;
+       res_mapping['V'] = 5; res_mapping['W'] = 5; res_mapping['X'] = 5;
+       res_mapping['Y'] = 5; res_mapping['Z'] = 5;
+      }
     std::vector<std::vector<unsigned int>> seqs_int_form;
     auto seqs_len = getSequencesLength(msa_file);
     std::ifstream msa_file_stream(msa_file);

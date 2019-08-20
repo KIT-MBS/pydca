@@ -6,6 +6,7 @@
 #include<string>
 #include<vector>
 #include <unordered_map>
+#include<algorithm>
 
 /*
     Implements the psuedolikelihood direct coupling analysis (plmDCA)
@@ -104,16 +105,21 @@ std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int bi
     std::string current_line;
     std::string current_seq;
     int line_counter=0;
+    int unique_seq_counter = 0;
     std::vector<unsigned int> current_seq_int;
 
     while(std::getline(msa_file_stream, current_line)){
         if(!current_line.empty() && current_line[0] != '>'){ 
-            for(unsigned int i = 0; i < seqs_len; ++i) {
+            for(unsigned int i = 0; i < seqs_len; ++i){
                 
                 current_seq_int.emplace_back(res_mapping[ toupper(current_line[i])]);
             }
-            // append the current sequences to seqs_int_form vector
-            seqs_int_form.emplace_back(current_seq_int);
+            current_seq_int.shrink_to_fit();
+            // take only unique sequences 
+            if(std::find(seqs_int_form.begin(), seqs_int_form.end(), current_seq_int) == seqs_int_form.end()){
+                seqs_int_form.emplace_back(current_seq_int);
+                ++unique_seq_counter;
+            }
             // clear current_seq_int so that it is used to capture the next sequence
             current_seq_int.clear();
             // count number of sequences read from msa_file
@@ -121,6 +127,7 @@ std::vector<std::vector<unsigned int>> getSequencesIntForm(const unsigned int bi
         }
     }
     std::cout << __PRETTY_FUNCTION__<< " Total number of sequences found: " << line_counter << std::endl;
+    std::cout << __PRETTY_FUNCTION__<< " Total number of unique sequences found: " << unique_seq_counter << std::endl;
     return seqs_int_form;
 }
 
@@ -135,7 +142,7 @@ std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(std::vec
     std::vector< std::vector<unsigned int>> current_seq_binary_form;
     std::vector<unsigned int>  site_full_state(num_site_states);
     std::vector<unsigned int> current_seq;
-    for (unsigned int i = 0; i < num_seqs; ++i){
+    for(unsigned int i = 0; i < num_seqs; ++i){
         current_seq = seqs_int_form[i];
         for(unsigned int j = 0; j < seqs_len; ++j){
             for (unsigned int k = 0; k < num_site_states; ++k){
@@ -144,14 +151,17 @@ std::vector<std::vector<std::vector<unsigned int>>> sequencesBinaryForm(std::vec
             current_seq_binary_form.emplace_back(site_full_state);
         }
         current_seq_binary_form.shrink_to_fit();
-        seqs_binary_form.emplace_back(current_seq_binary_form);
+        // append the current sequence only if its unique
+        if( std::find(seqs_binary_form.begin(), seqs_binary_form.end(), current_seq_binary_form)  != seqs_binary_form.end())
+            seqs_binary_form.emplace_back(current_seq_binary_form);
         current_seq_binary_form.clear();
     }
     seqs_binary_form.shrink_to_fit();
     return seqs_binary_form;
 }
 
-//compute sequences weigth
+
+//compute sequences weigtht
 std::vector<double> computeSequencesWeight(unsigned int const biomolecule, std::vector<std::vector<unsigned int>> const& seqs_int_form, 
     double const seqid)
 {   
@@ -202,6 +212,7 @@ double computeEffectiveNumSeqs(std::vector<double> const& seqs_weight)
     return eff_num_seqs;
 }
 
+
 //compute single site frequencies
 std::vector<std::vector<double>> computeWeightedSingleSiteFreqs(std::vector<std::vector<unsigned int>> const& seqs_int_form, 
     std::vector<double> const& weights, unsigned int const num_site_states)
@@ -240,6 +251,7 @@ std::vector<std::vector<double>> initFields(unsigned int const seqs_len, unsigne
 
 }
 
+
 void printFields(std::vector<std::vector<double>> const& fields)
 {
     auto seqs_len = fields.size();
@@ -253,6 +265,7 @@ void printFields(std::vector<std::vector<double>> const& fields)
     }
 }
 
+
 // factory function for couplings vector and pair-site frequencies vector
 std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(unsigned int const vec_size_1, unsigned int const vec_size_2, 
     unsigned int const vec_size_3, unsigned int const vec_size_4)
@@ -263,6 +276,7 @@ std::vector<std::vector<std::vector<std::vector<double>>>> fourDimVecFactory(uns
     std::vector<std::vector<std::vector<std::vector<double>>>> the_vector(vec_size_1, second_dim_vec);
     return the_vector;
 }
+
 
 // Couplings initializer 
 std::vector<std::vector<std::vector<std::vector<double>>>> initCouplings(unsigned int const seqs_len, 
@@ -290,8 +304,7 @@ void printCouplings(std::vector<std::vector<std::vector<std::vector<double>>>> c
     auto num_site_states = couplings[0][0][0].size();
     for(unsigned int i = 0; i < seqs_len - 1; ++i){
         for(unsigned int j = 0; j < seqs_len; ++j){
-            for(unsigned int a = 0; a < num_site_states; ++a)
-            {
+            for(unsigned int a = 0; a < num_site_states; ++a){
                 for(unsigned int b = 0;  b < num_site_states; ++b){
                     std::cout << i << " " << j << " " << a << " " << b << " " <<  couplings[i][j][a][b] << std::endl;
                 }
@@ -346,6 +359,51 @@ void printPairSiteFreqs(std::vector<std::vector<std::vector<std::vector<double>>
     }
 }
 
+
+//Compute the conditional probability of eatch site in MSA
+std::vector<std::vector<std::vector<double>>> singleSiteCondProb(std::vector<std::vector<std::vector<std::vector<double>>>> const& couplings,
+    std::vector<std::vector<double>> const& fields, std::vector<double> const& seqs_weight, std::vector<std::vector<unsigned int>> const& seqs_int_form)
+{
+    std::cout << "---- singleSiteCondProb -----" << std::endl;
+    auto num_seqs = seqs_int_form.size();
+    auto seqs_len = fields.size();
+    auto num_site_states = fields[0].size();
+    std::cout << "Number of sequences: " << num_seqs << std::endl;
+    std::cout << "Sequences length: " << seqs_len << std::endl;
+    std::cout << "Num site states: " << num_site_states << std::endl;
+    std::vector<double> states_per_site(num_site_states);
+    std::vector<std::vector<double>> states_per_seq(seqs_len);
+    std::vector<std::vector<std::vector<double>>> single_site_cond_prob(num_seqs);
+    std::vector<unsigned int> seq_n(seqs_len);
+    double  sumj_Jij;
+    unsigned int b;
+    double cond_energy_ia;
+    for(unsigned int n = 0; n < num_seqs; ++n){
+        seq_n = seqs_int_form[n];
+        for(unsigned int i = 0; i < seqs_len; ++i){
+            for(unsigned int a = 0; a < num_site_states; ++a){
+                sumj_Jij = 0.0;
+                for(unsigned int j = 0; j < seqs_len; ++j){
+                    if(j != i){
+                        b = seq_n[j] - 1; // since residues in sequences were counted starting from one.
+                        //std::cout << b;
+                        sumj_Jij += couplings[i][j][a][b];
+                    }
+                    cond_energy_ia = fields[i][a] + sumj_Jij;
+                    //std::cout << cond_energy_ia << std::endl;
+                }
+                //std::cout << std::endl;
+                states_per_site[a] = cond_energy_ia;
+            }
+            states_per_seq[i] = states_per_site;   
+        }
+        single_site_cond_prob[n] = states_per_seq;
+    }
+    std::cout << "---- singleSiteCondProb ----" << std::endl;
+    return single_site_cond_prob;
+}
+
+
 //estimate couplings and fields
 extern "C" double* plmdcaBackend(unsigned int const biomolecule, unsigned int const num_site_states, const char* msa_file, 
     unsigned int const seqs_len, double const seqid, double const lambda_h, double const lambda_J, unsigned int const max_iteration)
@@ -357,15 +415,9 @@ extern "C" double* plmdcaBackend(unsigned int const biomolecule, unsigned int co
     auto seqs_weight = computeSequencesWeight(biomolecule, seqs_int_form, seqid);
     auto single_site_freqs = computeWeightedSingleSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
     auto pair_site_freqs = computeWeightedPairSiteFreqs(seqs_int_form, seqs_weight, num_site_states);
+    
 
-    //we do not need the sequences and weights hereafter. Set their capacity to zero to free memory.
-    {
-        seqs_int_form.clear(); 
-        std::vector<std::vector<unsigned int>>().swap(seqs_int_form);
-        seqs_weight.clear();
-        std::vector<double>().swap(seqs_weight);
-    }
-
+    auto single_site_prob = singleSiteCondProb(couplings, fields, seqs_weight, seqs_int_form);
     //carry out gradient decent to compute couplings and fields 
     for(unsigned int current_step = 0; current_step < max_iteration; ++current_step){
         //update fields

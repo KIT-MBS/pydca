@@ -95,7 +95,7 @@ def get_alignment_from_fasta_file(file_name):
         #biopython just reads the records if there are tags (>some key).
         #It doesn't know if the file is really a biological sequence or not
     except Exception as expt:
-        error_msg='\t\nError occured while reading from fasta file: {}.' +\
+        error_msg='\n\tError occured while reading from fasta file: {}.' +\
             '\n\tError type:{}\n\tArguments:{!r}'
         logger.error(error_msg.format(file_name, type(expt).__name__, expt.args))
         raise

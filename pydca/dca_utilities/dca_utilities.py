@@ -479,7 +479,7 @@ def write_pair_site_freqs(file_name, fij, seqs_len = None,
     return None
 
 
-def write_params(fields_file_path=None, couplings_file_path=None, fields=None,
+def write_params_csv(fields_file_path=None, couplings_file_path=None, fields=None,
         couplings=None, num_site_states=None, metadata=None):
     """Writes the couplings and fields to their corresponding output files.
 
@@ -516,6 +516,33 @@ def write_params(fields_file_path=None, couplings_file_path=None, fields=None,
         num_site_states=num_site_states,
         metadata = metadata, seqs_len=seqs_len
     )
+    return None
+
+
+def write_params_binary(couplings = None, fields = None, couplings_file_path = None, 
+        fields_file_path = None):
+    """Saves couplings and fields in '.npy' file format
+
+    Parameters
+    ----------
+        couplings : np.array 
+            Numpy array of the couplings
+        fields : np.array 
+            Numpy array of the fields
+        couplings_file_path: str 
+            Path to file to save the couplings 
+        fields_file_path : str 
+            Path to file to save the fields
+
+    Returns
+    -------
+        None : None
+    """
+    logger.info('\n\tSaving couplings and fields in numpy binary file format')
+    logger.info('\n\tCouplings binary file path: {}'.format(couplings_file_path))
+    logger.info('\n\tFields binary file path: {}'.format(fields_file_path))
+    np.save(couplings_file_path, couplings)
+    np.save(fields_file_path, fields)
     return None
 
 

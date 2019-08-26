@@ -98,9 +98,7 @@ def get_alignment_from_fasta_file(file_name):
         error_msg='\t\nError occured while reading from fasta file: {}.' +\
             '\n\tError type:{}\n\tArguments:{!r}'
         logger.error(error_msg.format(file_name, type(expt).__name__, expt.args))
-        raise FastaReaderError(
-            'Unable to read from fasta file {}'.format(file_name)
-        )
+        raise
     else:
         if any(True for _ in record_iterator):
             for record in record_iterator:

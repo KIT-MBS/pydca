@@ -1,6 +1,7 @@
 
 import numpy as np
 from numba import jit
+from numba import prange as parallel_range
 
 
 """This module implements computationally constly routines while performing
@@ -10,7 +11,7 @@ Author : Mehari B. Zerihun
 """
 
 
-@jit(nopython=True)
+@jit(nopython=True, parallel=True)
 def compute_sequences_weight(alignment_data=None, sequence_identity=None):
     """Computes weight of sequences. The weights are calculated by lumping
     together sequences whose identity is greater that a particular threshold.
@@ -36,16 +37,15 @@ def compute_sequences_weight(alignment_data=None, sequence_identity=None):
     alignment_shape = alignment_data.shape
     num_seqs = alignment_shape[0]
     seqs_len = alignment_shape[1]
-    seqs_weight = np.ones((num_seqs,), dtype=np.float64)
+    seqs_weight = np.zeros((num_seqs,), dtype=np.float64)
     #count similar sequences
-    for i in range(num_seqs - 1):
+    for i in parallel_range(num_seqs):
         seq_i = alignment_data[i]
-        for j in range(i + 1, num_seqs):
+        for j in range(num_seqs):
             seq_j = alignment_data[j]
             iid = np.sum(seq_i==seq_j)
             if np.float64(iid)/np.float64(seqs_len) > sequence_identity:
                 seqs_weight[i] += 1
-                seqs_weight[j] += 1
     #compute the weight of each sequence in the alignment
     for i in range(num_seqs): seqs_weight[i] = 1.0/float(seqs_weight[i])
     return seqs_weight

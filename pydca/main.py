@@ -413,7 +413,7 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
         #create path to output directory is not supplied by user
         if not output_dir:
             msa_file_base_name, ext = os.path.splitext(os.path.basename(msa_file))
-            output_dir = 'DCA_output_' + msa_file_base_name
+            output_dir = 'MFDCA_output_' + msa_file_base_name
         #create dca coutput directory
         dca_utilities.create_directories(output_dir)
         #### Compute DCA score
@@ -427,15 +427,15 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
                 mapped_sites = seq_backmapper.map_to_reference_sequence()
             if apc: # do average product correction if apc is passed from the command line
                 sorted_DI, couplings = mfdca_instance.compute_sorted_DI_APC()
-                score_type = ' DI average product corrected (APC)'
+                score_type = ' MF DI average product corrected (APC)'
                 di_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                    msa_file, prefix='DCA_apc_di_scores_', postfix='.txt'
+                    msa_file, prefix='MFDCA_apc_di_scores_', postfix='.txt'
                 )
             else: # compute raw DCA score if apc is not asked
                 sorted_DI, couplings = mfdca_instance.compute_sorted_DI()
                 score_type = 'raw DI'
                 di_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                    msa_file, prefix='DCA_raw_di_scores_', postfix='.txt'
+                    msa_file, prefix='MFDCA_raw_di_scores_', postfix='.txt'
                 )
             if the_command.strip() == 'compute_di':# write DI scores
                 dca_utilities.write_sorted_dca_scores(di_file_path,sorted_DI,
@@ -470,16 +470,16 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
                     biomolecule = mfdca_instance.biomolecule)
                 mapped_sites = seq_backmapper.map_to_reference_sequence()
             if apc:
-                score_type = 'Frobenius norm, average product corrected (APC)'
+                score_type = 'MFDCA Frobenius norm, average product corrected (APC)'
                 sorted_FN = mfdca_instance.compute_sorted_FN_APC()
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                    msa_file, prefix = 'DCA_apc_fn_scores_', postfix='.txt'
+                    msa_file, prefix = 'MFDCA_apc_fn_scores_', postfix='.txt'
                 )
             else:
-                score_type = 'raw Frobenius norm'
+                score_type = 'MFDCA raw Frobenius norm'
                 sorted_FN = mfdca_instance.compute_sorted_FN()
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                    msa_file, prefix = 'DCA_raw_fn_scores_', postfix='.txt'
+                    msa_file, prefix = 'MFDCA_raw_fn_scores_', postfix='.txt'
                 )
             dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_FN,
                 site_mapping = mapped_sites, metadata = param_metadata,

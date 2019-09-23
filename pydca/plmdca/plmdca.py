@@ -86,11 +86,14 @@ class PlmDCA:
         log_message="""Created plmDCA instance with:
             biomolecule: {}
             MSA sequence length: {}
-            Total number of (unweighted) sequences: {}
+            total number of (unweighted) sequences: {}
             sequence identity: {}
             lambda_h: {}
             lambda_J: {}
-        """.format(self.__biomolecule, self.__seqs_len, self.__num_seqs, self.__seqid, self.__lambda_h, self.__lambda_J)
+            gradient decent iterations: {}
+        """.format(self.__biomolecule, self.__seqs_len, self.__num_seqs, 
+            self.__seqid, self.__lambda_h, self.__lambda_J, self.__num_iterations
+        )
         logger.info(log_message)
         return None
 
@@ -302,12 +305,12 @@ class PlmDCA:
             sorted_FN_APC : list of tuples
                 A list of tuples of  site of pairs and APC DCA scores
         """ 
-        
-        logger.info('\n\tPerforming average product correction (APC) of FN  of DCA scores')
+    
         # compute the average score of each site
         av_score_sites = list()
         N = self.__seqs_len
         scores_plmdca = self.compute_sorted_FN()
+        logger.info('\n\tPerforming average product correction (APC) of FN  of DCA scores')
         for i in range(N):
             i_scores = [score for pair, score in scores_plmdca if i in pair]
             assert len(i_scores) == N - 1
@@ -326,8 +329,6 @@ class PlmDCA:
         return sorted_FN_APC
         
 
-
-    
 
 if __name__ == '__main__':
     """

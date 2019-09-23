@@ -138,13 +138,13 @@ def mfdca_param_metadata(mfdca_instance):
 
 
 def plmdca_param_metadata(plmdca_instance):
-    """Generates a list of mean field DCA metadata that can be added as
+    """Generates a list of  plmDCA metadata that can be added as
     an output file header.
 
     Parameters
     ----------
-        plmdca_instance : MeanfieldDCA
-            An instance of MeanFieldDCA class.
+        plmdca_instance : PlmDCA
+            An instance of PlmDCA class.
 
     Returns
     -------

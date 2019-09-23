@@ -11,12 +11,17 @@ requirements = [
     "matplotlib==3.0.3",
 ]
 
-plmdca_compile_args = ["-fopenmp", "-std=c++11"]
-plmdca_link_args = ["-fopenmp"]
+plmdca_compile_args = ["-fopenmp", "-std=c++11"]  
+plmdca_link_args = ["-fopenmp"] 
+#plmdca_compile_args = ["-std=c++11"]  
+#plmdca_link_args = [] 
 
 plmdca_ext = Extension(
     'pydca.plmdca._plmdcaBackend',
-    ['pydca/plmdca/plmdcaBackend.cpp'],
+    [
+        'pydca/plmdca/plmdca_opt2.cpp',
+        'pydca/plmdca/plmdcaBackend_opt2.cpp', 
+    ],
     extra_compile_args = plmdca_compile_args,
     extra_link_args = plmdca_link_args,
     language = "c++",

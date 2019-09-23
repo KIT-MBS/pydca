@@ -118,7 +118,7 @@ def mfdca_param_metadata(mfdca_instance):
     Returns
     -------
         metadata : list
-            A list of metada related to DCA parameters used.
+            A list of metadata related to DCA parameters used.
     """
     metadata = [
         '# PARAMETERS USED FOR THIS COMPUTATION: ',
@@ -133,6 +133,38 @@ def mfdca_param_metadata(mfdca_instance):
             mfdca_instance.sequence_identity),
         '#      Value of relative pseudocount: {}'.format(
             mfdca_instance.pseudocount),
+    ]
+    return metadata
+
+
+def plmdca_param_metadata(plmdca_instance):
+    """Generates a list of mean field DCA metadata that can be added as
+    an output file header.
+
+    Parameters
+    ----------
+        plmdca_instance : MeanfieldDCA
+            An instance of MeanFieldDCA class.
+
+    Returns
+    -------
+        metadata : list
+            A list of metadata related to DCA parameters used.
+    """
+    metadata = [
+        '# PARAMETERS USED FOR THIS COMPUTATION: ',
+        '#      Sequence type: {}'.format(plmdca_instance.biomolecule),
+        '#      Total number of sequences in alignment data: {}'.format(
+            plmdca_instance.num_sequences),
+        '#      Length of sequences in alignment data: {}'.format(
+            plmdca_instance.sequences_len),
+        #'#      Effective number of sequences: {}'.format(
+        #    plmdca_instance.effective_num_sequences),
+        '#      Value of sequence identity: {}'.format(
+            plmdca_instance.sequence_identity),
+        '#      lambda_h: {}'.format(plmdca_instance.lambda_h),
+        '#      lambda_J: {}'.format(plmdca_instance.lambda_J),
+        '#      Number of gradient decent iterations: {}'.format(plmdca_instance.num_iterations),
     ]
     return metadata
 

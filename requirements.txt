@@ -3,3 +3,5 @@ numba==0.40.1
 numpy==1.15.4
 scipy==1.2.0rc1
 matplotlib==3.0.3
+requests>=2.22.0
+

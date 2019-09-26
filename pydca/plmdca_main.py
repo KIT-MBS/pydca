@@ -70,10 +70,12 @@ class CmdArgs:
     lambda_J_optional_help = """Value of couplings penalizing constant for L2 
     regularization of couplings.
     """
-    num_iterations_optional = '--num_iterations'
-    num_iterations_help = """Number of iterations for gradient decent 
+    max_iterations_optional = '--max_iteration'
+    max_iterations_help = """Number of iterations for gradient decent 
     for negative pseudolikelihood minimization.
     """
+    num_threads_optional = '--num_threads'
+    num_threads_help = "Number of threads from plmDCA computation"
     output_dir_optional = '--output_dir'
     output_dir_help = """Directory path to which output results are written.
     If the directory is not existing, it will be created provided that the user
@@ -85,7 +87,7 @@ class CmdArgs:
 
 
 def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=None, 
-        num_iterations=None):
+        max_iteration = None, num_threads=None, verbose=False):
     """Creates a PlmDCA instance and returns it.
 
     Parameters
@@ -110,14 +112,16 @@ def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=N
     """
     plmdca_inst = plmdca.PlmDCA(biomolecule, msa_file, 
         seqid=seqid, lambda_h=lambda_h, 
-        lambda_J=lambda_J, num_iterations = num_iterations,
+        lambda_J=lambda_J, max_iteration = max_iteration,
+        num_threads = num_threads, verbose=verbose,
     )
     return plmdca_inst 
 
 
 def execute_from_command_line(biomolecule, msa_file, the_command = None, 
     refseq_file = None, seqid = None, lambda_h = None, lambda_J = None, 
-    num_iterations = None,  apc = False ,verbose = False, output_dir = None):
+    max_iteration = None,  apc = False ,verbose = False, output_dir = None,
+    num_threads = None):
     """Runs plmdca computation from the command line.
 
     Parameters
@@ -136,7 +140,7 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
             Value of fileds penalizing constant. 
         lambda_J : float
             Value of couplings penalizing constant. 
-        num_iterations : int 
+        max_iteration : int 
             Number of iteration for gradient decent.
         apc : bool
             Perform average product correction to DCA scores. 
@@ -149,7 +153,8 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
     if verbose : configure_logging()
     
     plmdca_instance = get_plmdca_inst(biomolecule, msa_file, seqid=seqid, 
-        lambda_h=lambda_h, lambda_J=lambda_J, num_iterations = num_iterations
+        lambda_h=lambda_h, lambda_J=lambda_J, max_iteration = max_iteration, 
+        num_threads = num_threads, verbose=verbose
     )
 
 # compute Frobenius norm of couplings
@@ -198,7 +203,8 @@ def run_plm_dca():
     parser_compute_fn.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
     parser_compute_fn.add_argument(CmdArgs.lambda_h_optional, help=CmdArgs.lambda_h_optional_help, type=float)
     parser_compute_fn.add_argument(CmdArgs.lambda_J_optional, help=CmdArgs.lambda_J_optional_help, type=float)
-    parser_compute_fn.add_argument(CmdArgs.num_iterations_optional, help=CmdArgs.num_iterations_help, type=int)
+    parser_compute_fn.add_argument(CmdArgs.max_iterations_optional, help=CmdArgs.max_iterations_help, type=int)
+    parser_compute_fn.add_argument(CmdArgs.num_threads_optional, help=CmdArgs.num_threads_help, type=int)
     parser_compute_fn.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
     parser_compute_fn.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
     parser_compute_fn.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
@@ -212,7 +218,8 @@ def run_plm_dca():
         seqid=args_dict.get('seqid'),
         lambda_h=args_dict.get('lambda_h'),
         lambda_J = args_dict.get('lambda_J'),
-        num_iterations = args_dict.get('num_iterations'),
+        max_iteration = args_dict.get('max_iteration'),
+        num_threads = args_dict.get('num_threads'),
         apc = args_dict.get('apc'),
         output_dir = args_dict.get('output_dir'),
         verbose = args_dict.get('verbose'),

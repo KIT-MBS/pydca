@@ -28,7 +28,7 @@ class PlmDCA:
             Path to the plmDCA shared object created from the C++ source code
     """
     plmdca_so_paths  = glob.glob(
-            os.path.join(os.path.dirname(__file__), '_plmdcaBackend*')
+        os.path.join(os.path.dirname(__file__), '_plmdcaBackend*')
     )
     logger.info('\n\tplmdca backend path: {}'.format(plmdca_so_paths))
     try:
@@ -42,7 +42,7 @@ class PlmDCA:
 
 
     def __init__(self, biomolecule, msa_file, seqid=None, lambda_h=None, 
-            lambda_J=None, num_iterations=None):
+            lambda_J=None, max_iteration=None, num_threads=None, verbose=False):
         """Initilizes plmdca instances
         """
 
@@ -58,16 +58,17 @@ class PlmDCA:
         if self.__seqid <= 0 or self.__seqid > 1.0: 
             logger.error('\n\t{} is an invalid value of sequences identity (seqid) parameter'.format(self.__seqid))
             raise PlmDCAException 
-        self.__lambda_h= 0.01 if lambda_h is None else lambda_h
+        self.__lambda_h= 1.0 if lambda_h is None else lambda_h
         if self.__lambda_h < 0 :
             logger.error('\n\tlambda_h must be a positive number. You passed lambda_h={}'.format(self.__lambda_h))
             raise PlmDCAException  
-        #self.__lambda_J=  0.2*(self.__seqs_len - 1) if lambda_J is None else lambda_J
-        self.__lambda_J = 1.0  if lambda_J is None else lambda_J
+        self.__lambda_J=  0.2*(self.__seqs_len - 1) if lambda_J is None else lambda_J
         if self.__lambda_J < 0: 
             logger.error('\n\tlambda_J must be a positive number. You passed lambda_J={}'.format(self.__lambda_J))
             raise PlmDCAException
-        self.__num_iterations = num_iterations if num_iterations is not None else 100 
+        self.__max_iteration = max_iteration if max_iteration is not None else 100
+        self.__num_threads = 1 if num_threads is None else num_threads
+        self.__verbose = True if verbose else False  
         # plmdcaBackend interface
         # extern "C" float* plmdcaBackend(unsigned short const biomolecule, unsigned short const num_site_states, 
         # const char* msa_file, unsigned int const seqs_len, float const seqid, float const lambda_h, 
@@ -75,7 +76,7 @@ class PlmDCA:
         self.__plmdca = ctypes.CDLL(self.plmdca_lib_path)
         self.__plmdcaBackend = self.__plmdca.plmdcaBackend 
         self.__plmdcaBackend.argtypes = (ctypes.c_ushort, ctypes.c_ushort, ctypes.c_char_p, ctypes.c_uint, 
-            ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_uint)
+            ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_uint, ctypes.c_uint, ctypes.c_bool)
         data_size = (self.__seqs_len * (self.__seqs_len - 1) * (self.__num_site_states ** 2))/2 + self.__seqs_len * self.__num_site_states
         self.__data_size = int(data_size) 
         self.__plmdcaBackend.restype = ctypes.POINTER(ctypes.c_float * self.__data_size)
@@ -91,8 +92,10 @@ class PlmDCA:
             lambda_h: {}
             lambda_J: {}
             gradient decent iterations: {}
+            number of threads: {}
         """.format(self.__biomolecule, self.__seqs_len, self.__num_seqs, 
-            self.__seqid, self.__lambda_h, self.__lambda_J, self.__num_iterations
+            self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iteration,
+            self.__num_threads,
         )
         logger.info(log_message)
         return None
@@ -127,10 +130,10 @@ class PlmDCA:
 
 
     @property
-    def num_iterations(self):
+    def max_iteration(self):
         """
         """
-        return self.__num_iterations
+        return self.__max_iteration
 
 
     @property
@@ -203,19 +206,24 @@ class PlmDCA:
         logger.info('\n\tComputing fields and coupling using gradient decent')
         h_J_ptr = self.__plmdcaBackend(
             self.__biomolecule_int, self.__num_site_states, self.__msa_file.encode('utf-8'), 
-            self.__seqs_len,  self.__seqid, self.__lambda_h, self.__lambda_J, self.__num_iterations
+            self.__seqs_len,  self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iteration,
+            self.__num_threads, self.__verbose
         )
         
-        fields_and_couplings = [c for c in h_J_ptr.contents]
-
+        fields_and_couplings = np.zeros((self.__data_size,), dtype=np.float32)
+        #fields_and_couplings = [c for c in h_J_ptr.contents]
+        counter = 0
+        for i, h_or_J in enumerate(h_J_ptr.contents):
+            fields_and_couplings[i] = h_or_J
+            counter += 1
         #Free fields and couplings data from PlmDCABackend
         h_J_ptr_casted = ctypes.cast(h_J_ptr, ctypes.POINTER(ctypes.c_void_p))
         self.freeFieldsAndCouplings(h_J_ptr_casted)
 
-        fields_and_couplings = np.array(fields_and_couplings, dtype=np.float32)
+        #fields_and_couplings = np.array(fields_and_couplings, dtype=np.float32)
         
         try:
-            assert fields_and_couplings.size == self.__data_size 
+            assert fields_and_couplings.size == counter 
         except AssertionError:
             logger.error('\n\tData size mismatch from the plmDCA backend')
             raise

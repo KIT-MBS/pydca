@@ -9,18 +9,20 @@ requirements = [
     "scipy==1.2.0rc1",
     "numba==0.40.1",
     "matplotlib==3.0.3",
+    "requests>=2.22.0",
 ]
 
-#plmdca_compile_args = ["-fopenmp", "-std=c++11"]  
-#plmdca_link_args = ["-fopenmp"] 
-plmdca_compile_args = ["-std=c++11"]  
-plmdca_link_args = [] 
+plmdca_compile_args = ["-fopenmp", "-std=c++11"]  
+plmdca_link_args = ["-fopenmp"] 
+#plmdca_compile_args = ["-std=c++11"]  
+#plmdca_link_args = [] 
 
 plmdca_ext = Extension(
     'pydca.plmdca._plmdcaBackend',
-    [
-        'pydca/plmdca/plmdca_opt2.cpp',
-        'pydca/plmdca/plmdcaBackend_opt2.cpp', 
+    [   
+        'pydca/plmdca/lbfgs/lib/lbfgs.cpp',
+        'pydca/plmdca/plmdca.cpp',
+        'pydca/plmdca/plmdcaBackend.cpp', 
     ],
     extra_compile_args = plmdca_compile_args,
     extra_link_args = plmdca_link_args,

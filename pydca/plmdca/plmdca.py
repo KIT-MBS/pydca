@@ -42,7 +42,7 @@ class PlmDCA:
 
 
     def __init__(self, biomolecule, msa_file, seqid=None, lambda_h=None, 
-            lambda_J=None, max_iteration=None, num_threads=None, verbose=False):
+            lambda_J=None, max_iterations=None, num_threads=None, verbose=False):
         """Initilizes plmdca instances
         """
 
@@ -66,13 +66,13 @@ class PlmDCA:
         if self.__lambda_J < 0: 
             logger.error('\n\tlambda_J must be a positive number. You passed lambda_J={}'.format(self.__lambda_J))
             raise PlmDCAException
-        self.__max_iteration = max_iteration if max_iteration is not None else 100
+        self.__max_iterations = max_iterations if max_iterations is not None else 100
         self.__num_threads = 1 if num_threads is None else num_threads
         self.__verbose = True if verbose else False  
         # plmdcaBackend interface
         # extern "C" float* plmdcaBackend(unsigned short const biomolecule, unsigned short const num_site_states, 
         # const char* msa_file, unsigned int const seqs_len, float const seqid, float const lambda_h, 
-        # float const lambda_J, unsigned int const max_iteration)
+        # float const lambda_J, unsigned int const max_iterations)
         self.__plmdca = ctypes.CDLL(self.plmdca_lib_path)
         self.__plmdcaBackend = self.__plmdca.plmdcaBackend 
         self.__plmdcaBackend.argtypes = (ctypes.c_ushort, ctypes.c_ushort, ctypes.c_char_p, ctypes.c_uint, 
@@ -94,7 +94,7 @@ class PlmDCA:
             gradient decent iterations: {}
             number of threads: {}
         """.format(self.__biomolecule, self.__seqs_len, self.__num_seqs, 
-            self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iteration,
+            self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iterations,
             self.__num_threads,
         )
         logger.info(log_message)
@@ -130,10 +130,10 @@ class PlmDCA:
 
 
     @property
-    def max_iteration(self):
+    def max_iterations(self):
         """
         """
-        return self.__max_iteration
+        return self.__max_iterations
 
 
     @property
@@ -206,7 +206,7 @@ class PlmDCA:
         logger.info('\n\tComputing fields and coupling using gradient decent')
         h_J_ptr = self.__plmdcaBackend(
             self.__biomolecule_int, self.__num_site_states, self.__msa_file.encode('utf-8'), 
-            self.__seqs_len,  self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iteration,
+            self.__seqs_len,  self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iterations,
             self.__num_threads, self.__verbose
         )
         
@@ -267,7 +267,7 @@ class PlmDCA:
                 An instance of PlmDCA class
             
         Returns
-        --------
+        -------
             dca_scores_not_apc : List of tuples of site pairs and DCA scores.
                 The contents are sorted according to DCA score, in descending 
                 order.

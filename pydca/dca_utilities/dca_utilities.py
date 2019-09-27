@@ -164,7 +164,7 @@ def plmdca_param_metadata(plmdca_instance):
             plmdca_instance.sequence_identity),
         '#      lambda_h: {}'.format(plmdca_instance.lambda_h),
         '#      lambda_J: {}'.format(plmdca_instance.lambda_J),
-        '#      Number of gradient decent iterations: {}'.format(plmdca_instance.max_iteration),
+        '#      Number of gradient decent iterations: {}'.format(plmdca_instance.max_iterations),
     ]
     return metadata
 

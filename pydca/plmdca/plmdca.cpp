@@ -24,17 +24,19 @@ PlmDCA::PlmDCA(
 {
     /*  PlmDCA constructor
 
-        Attributes
+        Parameters
         ----------
-            msa_file        : Path to FASTA formatted multiple sequence alignment file.
-            biomolecule     : Type of biomolecule the MSA file represents.
-            seqs_len        : Length of sequences in MSA. 
-            num_site_states : Number of possible states in a sequence of MSA.
-            seqid           : Sequence identity threshold.
-            lambda_h        : Value of fields regularization penality.
-            lambda_J        : Value of couplings regularization penality.    
+            m_msa_file          : Path to FASTA formatted multiple sequence alignment file.
+            m_biomolecule       : Type of biomolecule the MSA file represents.
+            seqs_len            : Length of sequences in MSA. 
+            m_num_site_states   : Number of possible states in a sequence of MSA.
+            m_seqid             : Sequence identity threshold.
+            m_lambda_h          : Value of fields regularization penality.
+            m_lambda_J          : Value of couplings regularization penality.
+            m_num_threads       : Number of threads (when OpenMP is supported)
 
     */
+
     this->num_fields = this->seqs_len * this->num_site_states;
     this->num_couplings = (this->seqs_len * (this->seqs_len -1))/2*(this->num_site_states * this->num_site_states);
     this->num_fields_and_couplings = this->num_fields + this->num_couplings;
@@ -42,21 +44,6 @@ PlmDCA::PlmDCA(
     this->num_seqs = this->seqs_int_form.size();
     this->seqs_weight = this->computeSeqsWeight();
     
-    /*
-    std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    std::cout << "#msa file name:    " << this->msa_file << std::endl;
-    std::cout << "#biomolecule:      " << this->biomolecule << std::endl;
-    std::cout << "#sequences length: " << this->seqs_len << std::endl;
-    std::cout << "#num site states:  " << this->num_site_states << std::endl;
-    std::cout << "#sequence identity:" << this->seqid << std::endl;
-    std::cout << "#num seqs:        " << this->num_seqs << std::endl;
-    std::cout << "#lambda_h:        " << this->lambda_h << std::endl;
-    std::cout << "#lamdba_J:        " << this->lambda_J << std::endl;
-    std::cout << "#num_fields:      " << this->num_fields << std::endl;
-    std::cout << "#num_couplings:   " << this->num_couplings << std::endl; 
-    std::cout << "#num_fields_and_couplings:    " << this->num_fields_and_couplings << std::endl;
-    std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    */
 }
 
 
@@ -116,6 +103,7 @@ std::vector<float> PlmDCA::getPairSiteFreqs()
     float Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
     float MeffInv = 1.0/Meff;
     
+    //TODO  set num_threads only if OpenMP is supported during compilation.
     #pragma omp parallel for num_threads(this->num_threads)
     for(unsigned int i = 0; i < L; ++i){
         std::vector<float> current_fij(L*q*q, 0.0);
@@ -262,6 +250,18 @@ void PlmDCA::testSingleSiteFreqs()
 // Initialize fields and couplings
 void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
 {
+    /*Sets initial value for fields and couplings
+
+    Parameters
+    ----------
+        this                    : An instance of PlmDCA class.
+        fields_and_couplings    : Array of fields and couplings.
+
+    Returns
+    -------
+        void    : No return value
+
+    */
         auto single_site_freqs =  this->getSingleSiteFreqs();
         unsigned int index;
         float epsilon = 0.00001;
@@ -269,7 +269,6 @@ void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
             for(unsigned int a = 0; a < this->num_site_states; ++a){
                 index = a + this->num_site_states*i;
                 fields_and_couplings[index] = std::log(single_site_freqs[i][a] + epsilon);
-                //std::cout << index << " " << this->fields_and_couplings[index] << std::endl;
             }
         }
         for(unsigned int i = this->num_fields; i < this->num_fields_and_couplings; ++i){
@@ -284,15 +283,17 @@ void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
 unsigned int PlmDCA::mapIndexPairSiteFreqs(const unsigned int i, const unsigned int j, 
     const unsigned int a, const unsigned int b)
 {
-    /*Maps pair site indices into contiguous memory layout
+    /*Maps pair site indices into contiguous memory layout. The mapping is an upper
+    triangular matrix form with i < j. Each site pair (i, j) occupies the q*q float 
+    consecutive memory block.
 
         Parameters
         ----------
             this    : PlmDCA instance
-            i       : Trailing site in sequence
-            j       : Following site in sequence
-            a       : Residue at trailing site 
-            b       : Residue at following site
+            i       : Site i in site pair (i, j) with j > i.
+            j       : Site j in site pair (i, j) with j > i.
+            a       : Residue at site i. 
+            b       : Residue at site j.
 
         Returns
         -------
@@ -312,6 +313,13 @@ unsigned int PlmDCA::mapIndexPairSiteFreqsLocal(const unsigned int j,
     const unsigned int a, const unsigned int b)
 {
     /*Maps local pair-site frequencies indices
+
+    Parameters
+    ----------
+        this    : An instance of PlmDCA class.
+        j       : Outer most loop index.
+        a       : Residue at site i when for site (i, j) with j > i.
+        b       : Residue at site j.
     */
    auto const&  q = this->num_site_states;
    return  b +  q * ( a + q * j);
@@ -346,8 +354,8 @@ unsigned int PlmDCA::mapIndexCouplings(const unsigned int i, const unsigned int 
         Parameters
         ----------
             this    : An instance of PlmDCA class.
-            i       : Trailing index  when refering Jij(a,b) 
-            j       : Following index when refering to Jij(a, b)
+            i       : Site i for site pair (i, j) such that j > i. 
+            j       : Site j for site pair (i, j) such that j > i.
             a       : Residue/gap at the trailing site i
             b       : Residue/gap at site j
         
@@ -381,8 +389,8 @@ unsigned int PlmDCA::mapIndexFields(const unsigned int i, const unsigned int a)
             k   : Index mapping from two-dimensional representation of fileds to 
                 one dimensional representation.
     */
-   
-    unsigned int k = a + i * this->num_site_states; 
+    auto q =  this->num_site_states;
+    unsigned int k = a + i * q; 
     return k; 
 }
 
@@ -397,10 +405,9 @@ unsigned int PlmDCA::mapIndexCouplingsOneSite(const unsigned int j, const unsign
     Parameters
     ----------
         j   : Looping index that pairs a particular site with all other remaining
-            sites
-
-        a   : Residue at the trailing site 
-        b   : Residue at the following site
+            sites.
+        a   : Residue at site i for site pair (i, j) such that j > i.
+        b   : Residue at site j.
 
     Returns
     -------
@@ -463,15 +470,13 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
 
     Parameters
     ----------
-        *instance   : PlmDCA class pointer
-        x           :
-        gradient    : 
-        n           :
-        step        :
+        this                    : An instance of PlmDCA class
+        fields_and_couplings    : Array of fields and couplings
+        grad                    : Array of gradients 
 
     Returns
     -------
-        void        : void
+        fx                      : Value of objective function
 
     */
    
@@ -610,26 +615,6 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
  }
 
 
-/*
-void PlmDCA::printDCAScores(VectorXf const& h_and_J)
-{   
-
-    for(unsigned int i = 0; i < this->seqs_len - 1;  ++i){
-        for(unsigned int j = i + 1; j < this->seqs_len; ++j){
-            float scoreij = 0.0;
-            for(unsigned int a = 0; a < this->num_site_states; ++a){
-                for(unsigned int b = 0; b <  this->num_site_states; ++b){
-                    if(a == this->num_site_states - 1 || b == this->num_site_states - 1)continue;
-                    auto const& Jijab = h_and_J[this->mapIndexCouplings(i, j, a, b)];
-                    scoreij += Jijab * Jijab;
-                }
-            }
-            std::cout  << i + 1 << "\t" << j + 1 << "\t" << std::sqrt(scoreij) << std::endl; 
-        }
-    }
-}
-*/
-
 //compute sequences weight
 std::vector<float> PlmDCA::computeSeqsWeight()
 {
@@ -637,7 +622,7 @@ std::vector<float> PlmDCA::computeSeqsWeight()
 
         Parameters
         ----------
-            this    : An instance of PlmDCA class.
+            this            : An instance of PlmDCA class.
 
         Returns
         -------
@@ -646,8 +631,6 @@ std::vector<float> PlmDCA::computeSeqsWeight()
 
     */
     std::vector<float> m_seqs_weight(this->num_seqs);
-    //std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    //std::cout << "#computing sequences weights" << std::endl;
 
     #if defined(_OPENMP)
         //initialize weights to zero for the parallel case since each sequences is going to be compared with itself.
@@ -656,8 +639,6 @@ std::vector<float> PlmDCA::computeSeqsWeight()
         }
         #pragma omp parallel for num_threads(this->num_threads)
         for(unsigned int i = 0; i < this->num_seqs; ++i){
-            //seq_i = seqs_int_form[i];
-            //printf("Thread: %d\n", omp_get_thread_num());
             float similarity_ij;
             unsigned int num_identical_residues;
             for(unsigned int j = 0; j < this->num_seqs; ++j){
@@ -693,8 +674,6 @@ std::vector<float> PlmDCA::computeSeqsWeight()
     
     //"Normalize" sequences weight 
     for(unsigned int i = 0; i < this->num_seqs; ++i) m_seqs_weight[i] = 1.0/m_seqs_weight[i];
-    //for(unsigned int i = 0; i < this->num_seqs;++i) std::cout << i << " " << m_seqs_weight[i] << std::endl;
-    //std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
     return m_seqs_weight;
 }
 
@@ -766,10 +745,9 @@ std::vector<std::vector<unsigned int>>  PlmDCA::readSequencesFromFile()
     int unique_seq_counter = 0;
     std::vector<unsigned int> current_seq_int;
 
-    
     if(msa_file_stream.fail()){
         std::cerr << "Unable to open file " << this->msa_file << std::endl;
-        exit(-1);
+        throw std::runtime_error("Unable to open file containing the MSA data\n");
     }
 
     while(std::getline(msa_file_stream, current_line)){
@@ -778,7 +756,7 @@ std::vector<std::vector<unsigned int>>  PlmDCA::readSequencesFromFile()
                 
                 current_seq_int.emplace_back(res_mapping.at(toupper(current_line[i])));
             }
-            //current_seq_int.shrink_to_fit();
+    
             // take only unique sequences 
             if(std::find(seqs_int_form.begin(), seqs_int_form.end(), current_seq_int) == seqs_int_form.end()){
                 seqs_int_form.emplace_back(current_seq_int);
@@ -790,11 +768,5 @@ std::vector<std::vector<unsigned int>>  PlmDCA::readSequencesFromFile()
             line_counter++;           
         }
     }
-    /*
-    std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    std::cout << "#Total number of sequences found: " << line_counter << std::endl;
-    std::cout << "#Total number of unique sequences found: " << unique_seq_counter << std::endl;
-    std::cout << "#" <<__PRETTY_FUNCTION__ << std::endl;
-    */
     return seqs_int_form;
 }

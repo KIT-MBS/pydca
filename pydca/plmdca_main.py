@@ -70,7 +70,7 @@ class CmdArgs:
     lambda_J_optional_help = """Value of couplings penalizing constant for L2 
     regularization of couplings.
     """
-    max_iterations_optional = '--max_iteration'
+    max_iterations_optional = '--max_iterations'
     max_iterations_help = """Number of iterations for gradient decent 
     for negative pseudolikelihood minimization.
     """
@@ -87,7 +87,7 @@ class CmdArgs:
 
 
 def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=None, 
-        max_iteration = None, num_threads=None, verbose=False):
+        max_iterations = None, num_threads=None, verbose=False):
     """Creates a PlmDCA instance and returns it.
 
     Parameters
@@ -112,7 +112,7 @@ def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=N
     """
     plmdca_inst = plmdca.PlmDCA(biomolecule, msa_file, 
         seqid=seqid, lambda_h=lambda_h, 
-        lambda_J=lambda_J, max_iteration = max_iteration,
+        lambda_J=lambda_J, max_iterations = max_iterations,
         num_threads = num_threads, verbose=verbose,
     )
     return plmdca_inst 
@@ -120,7 +120,7 @@ def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=N
 
 def execute_from_command_line(biomolecule, msa_file, the_command = None, 
     refseq_file = None, seqid = None, lambda_h = None, lambda_J = None, 
-    max_iteration = None,  apc = False ,verbose = False, output_dir = None,
+    max_iterations = None,  apc = False ,verbose = False, output_dir = None,
     num_threads = None):
     """Runs plmdca computation from the command line.
 
@@ -140,7 +140,7 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
             Value of fileds penalizing constant. 
         lambda_J : float
             Value of couplings penalizing constant. 
-        max_iteration : int 
+        max_iterations : int 
             Number of iteration for gradient decent.
         apc : bool
             Perform average product correction to DCA scores. 
@@ -153,7 +153,7 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
     if verbose : configure_logging()
     
     plmdca_instance = get_plmdca_inst(biomolecule, msa_file, seqid=seqid, 
-        lambda_h=lambda_h, lambda_J=lambda_J, max_iteration = max_iteration, 
+        lambda_h=lambda_h, lambda_J=lambda_J, max_iterations = max_iterations, 
         num_threads = num_threads, verbose=verbose
     )
 
@@ -218,7 +218,7 @@ def run_plm_dca():
         seqid=args_dict.get('seqid'),
         lambda_h=args_dict.get('lambda_h'),
         lambda_J = args_dict.get('lambda_J'),
-        max_iteration = args_dict.get('max_iteration'),
+        max_iterations = args_dict.get('max_iterations'),
         num_threads = args_dict.get('num_threads'),
         apc = args_dict.get('apc'),
         output_dir = args_dict.get('output_dir'),

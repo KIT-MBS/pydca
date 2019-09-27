@@ -14,8 +14,7 @@ requirements = [
 
 plmdca_compile_args = ["-fopenmp", "-std=c++11"]  
 plmdca_link_args = ["-fopenmp"] 
-#plmdca_compile_args = ["-std=c++11"]  
-#plmdca_link_args = [] 
+
 
 plmdca_ext = Extension(
     'pydca.plmdca._plmdcaBackend',
@@ -57,8 +56,9 @@ setup(
     tests_require = requirements,
     entry_points={
         "console_scripts":[
-            "mfdca = pydca.main:run_meanfield_dca",
+            "mfdca = pydca.mfdca_main:run_meanfield_dca",
             "plmdca = pydca.plmdca_main:run_plm_dca",
+            "pydca = pydca.main:run_pydca",
         ],
     },
     test_suite="tests",

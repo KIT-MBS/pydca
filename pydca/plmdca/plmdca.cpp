@@ -64,7 +64,7 @@ std::vector<std::vector<float>> PlmDCA::getSingleSiteFreqs()
     for(unsigned int i = 0; i < this->seqs_len; ++i){
         std::fill(current_site_freqs.begin(), current_site_freqs.end(), 0.0);
         for(unsigned int n = 0; n < this->num_seqs; ++n){
-            auto a = this->seqs_int_form[n][i] - 1;
+            auto a = this->seqs_int_form[n][i];
             current_site_freqs[a] += this->seqs_weight[n]; 
         }
         single_site_freqs[i] = current_site_freqs;
@@ -111,10 +111,10 @@ std::vector<float> PlmDCA::getPairSiteFreqs()
             auto const& current_seq_weight = this->seqs_weight[n];
             auto const& current_seq = this->seqs_int_form[n];
             for(unsigned int j = 0;  j < i; ++j){
-                current_fij[this->mapIndexPairSiteFreqsLocal(j, current_seq[j] - 1, current_seq[i] - 1)] += current_seq_weight;
+                current_fij[this->mapIndexPairSiteFreqsLocal(j, current_seq[j], current_seq[i])] += current_seq_weight;
             }
             for(unsigned int j = i + 1; j <  L; ++j){
-                current_fij[this->mapIndexPairSiteFreqsLocal(j, current_seq[i] - 1, current_seq[j] - 1)] += current_seq_weight;
+                current_fij[this->mapIndexPairSiteFreqsLocal(j, current_seq[i], current_seq[j])] += current_seq_weight;
             }
         }//iteration over sequences
 
@@ -264,11 +264,12 @@ void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
     */
         auto single_site_freqs =  this->getSingleSiteFreqs();
         unsigned int index;
-        float epsilon = 0.00001;
+        float epsilon = 1E-5;
+        auto Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
         for(unsigned int i = 0; i < this->seqs_len; ++i){
             for(unsigned int a = 0; a < this->num_site_states; ++a){
                 index = a + this->num_site_states*i;
-                fields_and_couplings[index] = std::log(single_site_freqs[i][a] + epsilon);
+                fields_and_couplings[index] = std::log(single_site_freqs[i][a] * Meff + epsilon);
             }
         }
         for(unsigned int i = this->num_fields; i < this->num_fields_and_couplings; ++i){
@@ -501,22 +502,23 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
         for(unsigned int n = 0; n < Nseq; ++n){
             // compute probability at site i for sequence n
             auto const& current_seq = this->seqs_int_form[n];
-            for(unsigned int a = 0; a < q; ++a){
-                auto const& indx_ia = this->mapIndexFields(i,a);
-                prob_ni[a] += fields_and_couplings[indx_ia];
-            }
+            for(unsigned int a = 0; a < q; ++a) prob_ni[a] += fields_and_couplings[a + i * q];            
             
             for(unsigned int j = 0; j < i; ++j){
+                auto k = L * q + ((L *  (L - 1)/2) - (L - j) * ((L-j)-1)/2  + i  - j - 1) * q * q;
                 for(unsigned int a = 0; a < q; ++a){
-                    auto const& indx_jia = this->mapIndexCouplings(j, i, current_seq[j] - 1, a);
-                    prob_ni[a] += fields_and_couplings[indx_jia];
+                    // Index mapping hint
+                    // auto const& indx_jia = this->mapIndexCouplings(j, i, current_seq[j], a);
+                    prob_ni[a] += fields_and_couplings[k + a + current_seq[j] * q];
                 }
             }
 
             for(unsigned int j = i + 1; j < L; ++j){
+                auto k = L * q + ((L * (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * q * q;
                 for(unsigned int a = 0; a < q; ++a){
-                    auto const&  indx_ija = this->mapIndexCouplings(i, j, a, current_seq[j] - 1);
-                    prob_ni[a] += fields_and_couplings[indx_ija];
+                    // Index mapping hint
+                    // auto const&  indx_ija = this->mapIndexCouplings(i, j, a, current_seq[j]);
+                    prob_ni[a] += fields_and_couplings[k + current_seq[j]  + a * q];
                 }
             }
             auto max_exp = *std::max_element(prob_ni.begin(), prob_ni.end());
@@ -528,7 +530,7 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
             
             //compute the gradient of the minus log likelihood with respect to fields and couplings
             auto current_seq_weight = this->seqs_weight[n];
-            auto const& res_i = current_seq[i] - 1;
+            auto const& res_i = current_seq[i];
 
             fxi -= current_seq_weight * std::log(prob_ni[res_i]);
 
@@ -536,25 +538,30 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
             for(unsigned int a = 0; a < q; ++a) fields_gradient[a] += current_seq_weight * prob_ni[a];
             
             for(unsigned int j = 0; j < i; ++j){
-                auto const& indx_ji = this->mapIndexCouplingsOneSite(j, current_seq[j] - 1, res_i);
-                 
-                couplings_gradient[indx_ji]  -= current_seq_weight;
+                //auto const& indx_ji = this->mapIndexCouplingsOneSite(j, current_seq[j], res_i);
+                auto k = res_i + q * (current_seq[j] + q * j);
+                couplings_gradient[k] -= current_seq_weight;
             }
             for(unsigned int j = i + 1; j < L; ++j){
-                auto const& indx_ij = this->mapIndexCouplingsOneSite(j, res_i,  current_seq[j] - 1);
-                couplings_gradient[indx_ij] -= current_seq_weight;
+                // auto const& indx_ij = this->mapIndexCouplingsOneSite(j, res_i,  current_seq[j]);
+                auto k = current_seq[j] + q * (res_i +  q * j);
+                couplings_gradient[k] -= current_seq_weight;
             }
 
             for(unsigned int j = 0; j < i; ++j){
+                //auto k = b + q * ( a +  q * j);
+                auto k =  q * (current_seq[j] +  q * j);
                 for(unsigned int a = 0; a < q; ++a){
-                    auto const& indx_jia = this->mapIndexCouplingsOneSite(j, current_seq[j] -1, a);
-                    couplings_gradient[indx_jia] += current_seq_weight * prob_ni[a];
+                    //auto const& indx_jia = this->mapIndexCouplingsOneSite(j, current_seq[j], a);
+                    couplings_gradient[a + k] += current_seq_weight * prob_ni[a]; 
                 }
             }
             for(unsigned int j = i + 1; j < L; ++j){
+                //auto k = b + q * ( a +  q * j);
                 for(unsigned int a = 0; a < q; ++a){
-                    auto const& indx_ija = this->mapIndexCouplingsOneSite(j, a, current_seq[j] -1);
-                    couplings_gradient[indx_ija] += current_seq_weight * prob_ni[a];
+                    //auto const& indx_ija = this->mapIndexCouplingsOneSite(j, a, current_seq[j]);
+                    auto k = current_seq[j] + q * (a +  q * j);
+                    couplings_gradient[k] += current_seq_weight * prob_ni[a];
                 }
             }   
         }// End of iteration through sequences
@@ -563,25 +570,31 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
         {
             fx += fxi;
             for(unsigned int a = 0; a < q; ++a){
-                auto const& indx_ia = this->mapIndexFields(i, a);
-                grad[indx_ia] += fields_gradient[a];
+                //auto const& indx_ia = this->mapIndexFields(i, a);
+                //grad[indx_ia] += fields_gradient[a];
+                grad[a + q * i] += fields_gradient[a];
 
             }
 
             for(unsigned int j = 0; j < i; ++j){
+                auto k = L * q + ((L *  (L - 1)/2) - (L - j) * ((L-j)-1)/2  + i  - j - 1) * q * q;
                 for(unsigned int a = 0; a < q; ++a){
+                    auto k_2 = q * (a + q * j);
                     for(unsigned int b = 0; b < q; ++b){
-                        auto const& indx_jiab = this->mapIndexCouplings(j, i, a, b);
-                        grad[indx_jiab] += couplings_gradient[this->mapIndexCouplingsOneSite(j, a, b)];
+                        //auto const& indx_jiab = this->mapIndexCouplings(j, i, a, b);
+                        //grad[indx_jiab] += couplings_gradient[this->mapIndexCouplingsOneSite(j, a, b)];
+                        grad[k + b + a * q] += couplings_gradient[b + k_2];
                     }
                 }
             }
             for(unsigned int j = i + 1; j < L; ++j){
+                auto k = L * q + ((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * q * q;
                 for(unsigned int a = 0; a < q; ++a){
+                    auto k_2 = q * (a + q * j);
                     for(unsigned int b = 0; b < q; ++b){
-                        auto const& indx_ijab = this->mapIndexCouplings(i, j, a, b);
-                        grad[indx_ijab] += couplings_gradient[this->mapIndexCouplingsOneSite(j, a, b)];
-                        
+                        //auto const& indx_ijab = this->mapIndexCouplings(i, j, a, b);
+                        //grad[indx_ijab] += couplings_gradient[this->mapIndexCouplingsOneSite(j, a, b)];
+                        grad[k + b + a * q] += couplings_gradient[b + k_2];
                     }
                 }
             }
@@ -592,21 +605,26 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     // Gradients of L2-norm regularization terms.
     for(unsigned int i = 0; i < L; ++i){
         for(unsigned int a = 0; a < q; ++a){
-            auto const& indx_ia = this->mapIndexFields(i, a);
-            auto const& hia = fields_and_couplings[indx_ia];
-            grad[indx_ia] += 2.0 * lh * hia;
+            //auto const& indx_ia = this->mapIndexFields(i, a);
+            //auto const& hia = fields_and_couplings[indx_ia];
+            auto const hia = fields_and_couplings[a + i * q];
+            //grad[indx_ia] += 2.0 * lh * hia;
+            grad[a + q * i] += 2.0 * lh * hia;
             fx += lh *  hia * hia;
         }
     }
 
     for(unsigned int i = 0; i < L - 1; ++i){
         for(unsigned int j = i + 1; j < L; ++j){
+            auto k = L * q + ((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * q * q;
             for(unsigned int a = 0; a < q; ++a){
                 for(unsigned int b = 0; b < q; ++b){
-                    auto const& indx_ij_ab = this->mapIndexCouplings(i, j, a, b);
-                    auto const& Jijab = fields_and_couplings[indx_ij_ab];
-                    grad[indx_ij_ab] += 2.0 * lJ * Jijab;
-                    fx += lJ *  Jijab *  Jijab;
+                    //auto const& indx_ij_ab = this->mapIndexCouplings(i, j, a, b);
+                    //auto const& Jijab = fields_and_couplings[indx_ij_ab];
+                    auto const& Jijab = fields_and_couplings[k + b + q * a];
+                    //grad[indx_ij_ab] += 2.0 * lJ * Jijab;
+                    grad[k + b + q * a] += 2.0 * lJ * Jijab;
+                    fx += lJ *  Jijab * Jijab;
                 }
             }
         }
@@ -705,37 +723,37 @@ std::vector<std::vector<unsigned int>>  PlmDCA::readSequencesFromFile()
     */
     std::unordered_map<char, unsigned int> res_mapping;
     if(this->biomolecule==1){
-    /*  Protein residues mapping
+    /*  Protein residues mapping (value minus 1 for optimization)
         'A': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5,
         'G': 6, 'H': 7, 'I': 8, 'K': 9, 'L': 10,
         'M': 11, 'N': 12, 'P': 13, 'Q': 14, 'R': 15,
         'S': 16, 'T': 17, 'V': 18, 'W':19, 'Y':20,
         '-':21, '.':21, '~':21,
     */
-        res_mapping['A'] = 1; res_mapping['C'] = 2; res_mapping['D'] = 3;
-        res_mapping['E'] = 4; res_mapping['F'] = 5; res_mapping['G'] = 6;
-        res_mapping['H'] = 7; res_mapping['I'] = 8; res_mapping['K'] = 9;
-        res_mapping['L'] = 10; res_mapping['M'] = 11; res_mapping['N'] = 12;
-        res_mapping['P'] = 13; res_mapping['Q'] = 14; res_mapping['R'] = 15;
-        res_mapping['S'] = 16; res_mapping['T'] = 17; res_mapping['V'] = 18;
-        res_mapping['W'] = 19; res_mapping['Y'] = 20; res_mapping['-'] = 21;
-        res_mapping['.'] = 21; res_mapping['~'] = 21; res_mapping['B'] = 21;
-        res_mapping['J'] = 21; res_mapping['O'] = 21; res_mapping['U'] = 21;
-        res_mapping['X'] = 21; res_mapping['Z'] = 21;
+        res_mapping['A'] = 0; res_mapping['C'] = 1; res_mapping['D'] = 2;
+        res_mapping['E'] = 3; res_mapping['F'] = 4; res_mapping['G'] = 5;
+        res_mapping['H'] = 6; res_mapping['I'] = 7; res_mapping['K'] = 8;
+        res_mapping['L'] = 9; res_mapping['M'] = 10; res_mapping['N'] = 11;
+        res_mapping['P'] = 12; res_mapping['Q'] = 13; res_mapping['R'] = 14;
+        res_mapping['S'] = 15; res_mapping['T'] = 16; res_mapping['V'] = 17;
+        res_mapping['W'] = 18; res_mapping['Y'] = 19; res_mapping['-'] = 20;
+        res_mapping['.'] = 20; res_mapping['~'] = 20; res_mapping['B'] = 20;
+        res_mapping['J'] = 20; res_mapping['O'] = 20; res_mapping['U'] = 20;
+        res_mapping['X'] = 20; res_mapping['Z'] = 20;
     }else{
     /* RNA residues mapping
         'A':1, 'C':2, 'G':3, 'U':4, '-':5, '.':5, '~':5
     */
-       res_mapping['A'] = 1; res_mapping['C'] = 2; res_mapping['G'] = 3;
-       res_mapping['U'] = 4; res_mapping['-'] = 5; res_mapping['~'] = 5;
-       res_mapping['.'] = 5; res_mapping['B'] = 5; res_mapping['D'] = 5;
-       res_mapping['E'] = 5; res_mapping['F'] = 5; res_mapping['H'] = 5;
-       res_mapping['I'] = 5; res_mapping['J'] = 5; res_mapping['K'] = 5;
-       res_mapping['L'] = 5; res_mapping['M'] = 5; res_mapping['N'] = 5;
-       res_mapping['O'] = 5; res_mapping['P'] = 5; res_mapping['Q'] = 5;
-       res_mapping['R'] = 5; res_mapping['S'] = 5; res_mapping['T'] = 5;
-       res_mapping['V'] = 5; res_mapping['W'] = 5; res_mapping['X'] = 5;
-       res_mapping['Y'] = 5; res_mapping['Z'] = 5;
+       res_mapping['A'] = 0; res_mapping['C'] = 1; res_mapping['G'] = 2;
+       res_mapping['U'] = 3; res_mapping['-'] = 4; res_mapping['~'] = 4;
+       res_mapping['.'] = 4; res_mapping['B'] = 4; res_mapping['D'] = 4;
+       res_mapping['E'] = 4; res_mapping['F'] = 4; res_mapping['H'] = 4;
+       res_mapping['I'] = 4; res_mapping['J'] = 4; res_mapping['K'] = 4;
+       res_mapping['L'] = 4; res_mapping['M'] = 4; res_mapping['N'] = 4;
+       res_mapping['O'] = 4; res_mapping['P'] = 4; res_mapping['Q'] = 4;
+       res_mapping['R'] = 4; res_mapping['S'] = 4; res_mapping['T'] = 4;
+       res_mapping['V'] = 4; res_mapping['W'] = 4; res_mapping['X'] = 4;
+       res_mapping['Y'] = 4; res_mapping['Z'] = 4;
     }
     std::vector<std::vector<unsigned int>> seqs_int_form;
     std::ifstream msa_file_stream(this->msa_file);

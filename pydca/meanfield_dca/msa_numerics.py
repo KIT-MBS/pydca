@@ -126,9 +126,11 @@ def get_reg_single_site_freqs(single_site_freqs = None, seqs_len = None,
     return reg_single_site_freqs
 
 
+# This function is replaced by the parallelized version below
 @jit(nopython=True)
-def compute_pair_site_freqs(alignment_data=None, num_site_states=None,
+def compute_pair_site_freqs_serial(alignment_data=None, num_site_states=None,
         seqs_weight=None):
+    
     """Computes pair site frequencies for an alignmnet data.
 
     Parameters
@@ -176,6 +178,57 @@ def compute_pair_site_freqs(alignment_data=None, num_site_states=None,
             #move to the next site pair (i, j)
             pair_counter += 1
     return pair_site_freqs
+
+
+@jit(nopython=True, parallel=True)
+def compute_pair_site_freqs(alignment_data=None, num_site_states=None, seqs_weight=None):
+    """Computes pair site frequencies for an alignmnet data.
+
+    Parameters
+    ----------
+        alignment_data : np.array()
+            A 2d numpy array conatining alignment data. The residues in the
+            alignment are in integer representation.
+        num_site_states : int
+            The number of possible states including gap state that sequence
+            sites can accomodate. It must be an integer
+        seqs_weight:
+            A 1d numpy array of sequences weight
+
+    Returns
+    -------
+        pair_site_freqs : np.array()
+            A 3d numpy array of shape
+            (num_pairs, num_site_states, num_site_states) where num_pairs is
+            the number of unique pairs we can form from sequence sites. The
+            pairs are assumed to in the order (0, 1), (0, 2) (0, 3), ...(0, L-1),
+            ... (L-1, L). This ordering is critical and any change must be
+            documented.
+    """
+    
+    alignment_shape = alignment_data.shape
+    num_seqs = alignment_shape[0]
+    seqs_len = alignment_shape[1]
+    num_site_pairs = (seqs_len -1)*seqs_len/2
+    num_site_pairs = np.int64(num_site_pairs)
+    m_eff = np.sum(seqs_weight)
+    pair_site_freqs = np.zeros(
+        shape=(num_site_pairs, num_site_states - 1, num_site_states - 1),
+        dtype = np.float64
+    )
+    for i in parallel_range(seqs_len - 1):
+        column_i = alignment_data[:, i]
+        for j in range(i+1, seqs_len):
+            pair_site = int((seqs_len * (seqs_len - 1)/2) - (seqs_len - i) * ((seqs_len - i) - 1)/2  + j  - i - 1)
+            column_j = alignment_data[:, j]
+            for a in range(1, num_site_states):
+                count_ai = column_i==a
+                for b in range(1, num_site_states):
+                    count_bj = column_j==b
+                    count_ai_bj = count_ai * count_bj
+                    freq_ia_jb = np.sum(count_ai_bj*seqs_weight)
+                    pair_site_freqs[pair_site, a-1, b-1] += freq_ia_jb/m_eff
+    return pair_site_freqs 
 
 
 @jit(nopython=True)

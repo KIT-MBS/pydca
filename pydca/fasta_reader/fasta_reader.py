@@ -151,6 +151,7 @@ def get_alignment_int_form(file_name, biomolecule='protein'):
 
     num_seqs_with_non_standard_res = 0
     num_non_standard_res = 0
+    total_num_seqs_in_msa = 0
     for seq in alignment:
         try:
             seq_int = [RES_TO_INT[res.upper()] for res in seq]
@@ -164,12 +165,14 @@ def get_alignment_int_form(file_name, biomolecule='protein'):
                 else:
                     num_non_standard_res += 1
                     seq_int.append(NUM_SITE_STATES)
-        #if seq_int not in alignment_int_form:
-        alignment_int_form.append(seq_int)
+        total_num_seqs_in_msa += 1
+        if seq_int not in alignment_int_form:
+            alignment_int_form.append(seq_int)
     if num_seqs_with_non_standard_res > 0:
         logger.info('\n\tFound {} non-standard residues in {} sequences'
             ''.format(num_non_standard_res, num_seqs_with_non_standard_res)
         )
+    logger.info('\n\tTotal number of sequences read from file: {}'.format(total_num_seqs_in_msa))
     if not alignment_int_form:
         logger.error('\n\tNo data found in alignment in integer representation')
         raise ValueError

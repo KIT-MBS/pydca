@@ -165,8 +165,8 @@ class MeanFieldDCA:
         \tpseudocount: {}
         \tsequence identity: {}
         \talignment length: {}
-        \ttotal number of (non-effective) sequences: {}
-        \teffective number of sequences: {}
+        \ttotal number of unique sequences (excluding redundant sequences with 100 percent similarity): {}
+        \teffective number of sequences (with sequence identity {}): {}
         """.format(
             biomolecule,
             self.__num_site_states,
@@ -174,6 +174,7 @@ class MeanFieldDCA:
             self.__sequence_identity,
             self.__sequences_len,
             self.__num_sequences,
+            self.__sequence_identity,
             self.__effective_num_sequences,
         )
         logger.info(mf_dca_info)

@@ -10,7 +10,7 @@
     #include<algorithm>
     #include<cmath>
     #include<numeric>
-    #include "lbfgs/include/lbfgs.h"
+    #include"../lbfgs/include/lbfgs.h"
 
 
     class PlmDCA {

@@ -3,7 +3,7 @@
     #include <omp.h>
 #endif
 #include <stdexcept> 
-#include "plmdca.h"
+#include "include/plmdca.h"
 #include <stdio.h>
 
 /*

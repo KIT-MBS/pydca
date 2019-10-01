@@ -1,4 +1,4 @@
-#include "plmdca.h"
+#include "include/plmdca.h"
 
 /*Implements the pseudolikelihood maximization direct couplings analysis 
 for protein and RNA sequences.

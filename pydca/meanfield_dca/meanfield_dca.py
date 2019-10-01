@@ -756,7 +756,6 @@ class MeanFieldDCA:
 
             couplings : np.array
                 A 2d numpy array of the couplings.
-
         """
 
         sorted_DI, couplings = self.compute_sorted_DI()
@@ -786,9 +785,13 @@ class MeanFieldDCA:
         """Computes the Frobenius norm of couplings.
         Parameters
         ----------
+            self : MeanFieldDCA
+                An instance of MeanFieldDCA class
 
         Returns
         -------
+            frobenius_norm_sorted   : List of tuples of site pairs and DCA scores
+                sorted by DCA scores.
         """
         reg_fi = self.get_reg_single_site_freqs()
         reg_fij = self.get_reg_pair_site_freqs()
@@ -806,8 +809,8 @@ class MeanFieldDCA:
                 col_start = j * (q - 1)
                 col_end = col_start + (q - 1)
                 cij = couplings[row_start:row_end, col_start:col_end]
-                cij_mean_1 = np.reshape(np.mean(cij, axis=0), (q-1, 1))
-                cij_mean_2 = np.reshape(np.mean(cij, axis=1), (1, q-1))
+                cij_mean_1 = np.reshape(np.mean(cij, axis=0), (1, q-1))
+                cij_mean_2 = np.reshape(np.mean(cij, axis=1), (q-1, 1))
                 cij_mean =  np.mean(cij)
                 cij_new = cij - cij_mean_1 - cij_mean_2 + cij_mean
                 fn_ij = np.sqrt(np.sum(cij_new * cij_new))
@@ -817,7 +820,16 @@ class MeanFieldDCA:
 
 
     def compute_sorted_FN_APC(self):
-        """
+        """Performs average product correction (APC) on DCA scores
+
+        Parameters
+        ----------
+            self    : MeanFieldDCA
+                An instance of MeanFieldDCA class.
+
+        Returns
+        -------
+            frobenius_norm_apc : Average product corrected sorted DCA scores.
         """
         raw_fn = self.compute_sorted_FN()
         logger.info('\n\tPerforming average product correction (APC) to Frobenius'
@@ -841,28 +853,4 @@ class MeanFieldDCA:
 
 if __name__ == '__main__':
     """
-    import logging
-    from argparse import ArgumentParser
-    logging.basicConfig(level=logging.DEBUG)
-    parser = ArgumentParser(description='reads MSA file name and biomolecule from command line')
-    parser.add_argument('msa_file', help='name of alignment FASTA file')
-    parser.add_argument('biomolecule', help='biomolecule type', choices=['protein', 'PROTEIN', 'rna', 'RNA'])
-    args=parser.parse_args()
-    mf_dca = MeanFieldDCA(
-        args.msa_file,
-        args.biomolecule,
-        sequence_identity = 0.8,
-        pseudocount = 0.5,
-    )
-
-    logger.info('--------------------------HEADER-------------------------------------')
-    logger.info('ALIGNMENT FILE: {}'.format(args.msa_file))
-    logger.info('SEQUENCE IDENTITY: {}'.format(mf_dca.sequence_identity))
-    logger.info('PSEUDO COUNT: {}'.format(mf_dca.pseudocount))
-    logger.info('TOTAL NUMBER OF SEQUENCES: {}'.format(mf_dca.num_sequences))
-    logger.info('EFFECTIVE NUMBER OF SEQUENCES: {}'.format(mf_dca.effective_num_sequences))
-    logger.info('---------------------------------------------------------------------')
-
-    logger.info('\n\tComputing two site model fields')
-    sorted_di, couplings = mf_dca.compute_sorted_DI_APC()
     """

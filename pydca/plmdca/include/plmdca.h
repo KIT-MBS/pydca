@@ -80,5 +80,6 @@
             unsigned int num_couplings;
             unsigned int num_fields_and_couplings;
             unsigned int  num_threads;
+            float  Meff;
     };
 #endif

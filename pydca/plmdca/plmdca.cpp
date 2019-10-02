@@ -43,6 +43,7 @@ PlmDCA::PlmDCA(
     this->seqs_int_form = readSequencesFromFile();
     this->num_seqs = this->seqs_int_form.size();
     this->seqs_weight = this->computeSeqsWeight();
+    this->Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
     
 }
 
@@ -70,10 +71,10 @@ std::vector<std::vector<float>> PlmDCA::getSingleSiteFreqs()
         single_site_freqs[i] = current_site_freqs;
     }
     // Divide frequency counts by effective number of sequences
-    float eff_num_seqs = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
+
     for(unsigned int i = 0; i < this->seqs_len; ++i){
         for(unsigned int a = 0; a < this->num_site_states; ++a){
-            single_site_freqs[i][a] /= eff_num_seqs;
+            single_site_freqs[i][a] /= this->Meff;
         }
     }
     return single_site_freqs; 
@@ -264,12 +265,11 @@ void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
     */
         auto single_site_freqs =  this->getSingleSiteFreqs();
         unsigned int index;
-        float epsilon = 1E-5;
-        auto Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
+        float epsilon = 1.0;
         for(unsigned int i = 0; i < this->seqs_len; ++i){
             for(unsigned int a = 0; a < this->num_site_states; ++a){
                 index = a + this->num_site_states*i;
-                fields_and_couplings[index] = std::log(single_site_freqs[i][a] * Meff + epsilon);
+                fields_and_couplings[index] = std::log(single_site_freqs[i][a] * this->Meff + epsilon);
             }
         }
         for(unsigned int i = this->num_fields; i < this->num_fields_and_couplings; ++i){
@@ -489,7 +489,35 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     auto const& lJ = this->lambda_J;
 
     float fx = 0.0;
-    for(unsigned int i = 0; i < this->num_fields_and_couplings; ++i) grad[i] =  0.0;
+    //for(unsigned int i = 0; i < this->num_fields_and_couplings; ++i) grad[i] =  0.0;
+    
+    // Gradients of L2-norm regularization terms.
+    for(unsigned int i = 0; i < L; ++i){
+        for(unsigned int a = 0; a < q; ++a){
+            //auto const& indx_ia = this->mapIndexFields(i, a);
+            //auto const& hia = fields_and_couplings[indx_ia];
+            auto const hia = fields_and_couplings[a + i * q];
+            //grad[indx_ia] += 2.0 * lh * hia;
+            grad[a + q * i] = 2.0 * lh * hia;
+            fx += lh *  hia * hia;
+        }
+    }
+
+    for(unsigned int i = 0; i < L - 1; ++i){
+        for(unsigned int j = i + 1; j < L; ++j){
+            auto k = L * q + ((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * q * q;
+            for(unsigned int a = 0; a < q; ++a){
+                for(unsigned int b = 0; b < q; ++b){
+                    //auto const& indx_ij_ab = this->mapIndexCouplings(i, j, a, b);
+                    //auto const& Jijab = fields_and_couplings[indx_ij_ab];
+                    auto const& Jijab = fields_and_couplings[k + b + q * a];
+                    //grad[indx_ij_ab] += 2.0 * lJ * Jijab;
+                    grad[k + b + q * a] = 2.0 * lJ * Jijab;
+                    fx += lJ *  Jijab * Jijab;
+                }
+            }
+        }
+    }
 
 
     // Compute gradients of the negative of pseudolikelihood from alignment data. 
@@ -602,33 +630,6 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     
     } // End of iteration through sites
 
-    // Gradients of L2-norm regularization terms.
-    for(unsigned int i = 0; i < L; ++i){
-        for(unsigned int a = 0; a < q; ++a){
-            //auto const& indx_ia = this->mapIndexFields(i, a);
-            //auto const& hia = fields_and_couplings[indx_ia];
-            auto const hia = fields_and_couplings[a + i * q];
-            //grad[indx_ia] += 2.0 * lh * hia;
-            grad[a + q * i] += 2.0 * lh * hia;
-            fx += lh *  hia * hia;
-        }
-    }
-
-    for(unsigned int i = 0; i < L - 1; ++i){
-        for(unsigned int j = i + 1; j < L; ++j){
-            auto k = L * q + ((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * q * q;
-            for(unsigned int a = 0; a < q; ++a){
-                for(unsigned int b = 0; b < q; ++b){
-                    //auto const& indx_ij_ab = this->mapIndexCouplings(i, j, a, b);
-                    //auto const& Jijab = fields_and_couplings[indx_ij_ab];
-                    auto const& Jijab = fields_and_couplings[k + b + q * a];
-                    //grad[indx_ij_ab] += 2.0 * lJ * Jijab;
-                    grad[k + b + q * a] += 2.0 * lJ * Jijab;
-                    fx += lJ *  Jijab * Jijab;
-                }
-            }
-        }
-    }
     return fx;
  }
 

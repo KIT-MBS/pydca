@@ -1,7 +1,6 @@
-biopython==1.72
-numba==0.40.1
-numpy==1.15.4
-scipy==1.2.0rc1
-matplotlib==3.0.3
+biopython>=1.72
+numpy<=1.15.4
+scipy>=1.2.0rc1
+numba>=0.40.1
+matplotlib>=3.0.3
 requests>=2.22.0
-

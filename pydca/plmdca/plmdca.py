@@ -203,7 +203,7 @@ class PlmDCA:
             fields_and_couplings : np.array
                 A one-dimensional array of the fields and couplings
         """
-        logger.info('\n\tComputing fields and coupling using gradient decent')
+        logger.info('\n\tComputing fields and couplings using gradient decent')
         h_J_ptr = self.__plmdcaBackend(
             self.__biomolecule_int, self.__num_site_states, self.__msa_file.encode('utf-8'), 
             self.__seqs_len,  self.__seqid, self.__lambda_h, self.__lambda_J, self.__max_iterations,

@@ -1,7 +1,7 @@
 #ifndef PLMDCA_BACKEND_H
 #define PLMDCA_BACKEND_H
     #include<cstdio>    
-    #include<stdlib.h>
+    #include<cstdlib>
     #include<fstream>
     #include<iostream>
     #include<string>

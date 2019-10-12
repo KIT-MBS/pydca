@@ -1,5 +1,7 @@
 from pydca.sequence_backmapper.sequence_backmapper import SequenceBackmapper
 from pydca.fasta_reader.fasta_reader import get_alignment_from_fasta_file
+from pydca.fasta_reader.fasta_reader import get_alignment_int_form
+from . import msa_numerics
 import ctypes 
 import logging
 import os
@@ -256,6 +258,26 @@ class PlmDCA:
                         couplings.append(fileds_and_couplings[indx])
         return np.array(couplings)
 
+    
+    def get_fields_no_gap_state(self):
+        """Extracts the fields from fields and couplings numpy array.
+
+        Parameters
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+        Returns
+        --------
+            fields : np.array
+                A one dimensional array of the fields
+        """
+        fields_and_couplings = self.compute_params()
+        fields_all = fields_and_couplings[:self.__seqs_len * self.__num_site_states]
+        #TODO  remove gap state fields  from fields_all
+        #fields = fields_all[]
+        
+        return fields 
+
 
     def compute_sorted_FN(self):
         """Computes DCA scores using the Frobenius norm of the couplings. Note 
@@ -335,6 +357,223 @@ class PlmDCA:
         # sort the scores as doing APC may have disrupted the ordering
         sorted_FN_APC = sorted(sorted_FN_APC, key = lambda k : k[1], reverse=True)
         return sorted_FN_APC
+    
+    
+    def compute_seqs_weight(self):
+        """Computes sequences weight
+
+        Parameters
+        ----------
+            self: PlmDCA
+                An instance of PlmDCA class
+        
+        Returns 
+        -------
+            seqs_weight : np.array
+                A 1d numpy array containing sequences weight.
+        """
+        logger.info('\n\tComputing sequences weight using pseudo count {}'.format(self.__seqid))
+        alignment_data = np.array(
+            get_alignment_int_form(self.__msa_file, 
+            biomolecule = self.__biomolecule)
+        )
+        seqs_weight = msa_numerics.compute_sequences_weight(
+            alignment_data=alignment_data, 
+            sequence_identity = self.__seqid
+        )
+        Meff = np.sum(seqs_weight)
+        logger.info('\n\tEffective number of sequences: {}'.format(Meff))
+        self.__seqs_weight = seqs_weight 
+        self.__eff_num_seqs = Meff
+        return seqs_weight 
+
+
+    def get_single_site_freqs(self):
+        """Computes single site frequencies from MSA data
+
+        Parameters 
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+        
+        Returns
+        -------
+            single_site_freqs :
+                A 2d numpy array of type float64. The shape of this array is
+                (seqs_len, num_site_states) where seqs_len is the length of sequences
+                in the alignment data.
+        """
+        alignment_data = np.array(get_alignment_int_form(self.__msa_file, biomolecule = self.__biomolecule))
+        seqs_weight = msa_numerics.compute_sequences_weight(
+            alignment_data=alignment_data, 
+            sequence_identity = self.__seqid
+        )
+        logger.info('\n\tComputing single site frequencies')
+        
+        single_site_freqs = msa_numerics.compute_single_site_freqs(
+            alignment_data = alignment_data, 
+            num_site_states = self.__num_site_states, 
+            seqs_weight = seqs_weight 
+        )
+        return single_site_freqs
+      
+
+    def get_reg_single_site_freqs(self):
+        """Regularizes single-site frequencies
+        
+        Parameters
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+        
+        Returns
+        -------
+            fi_reg : np.array 
+                A 2d numpy array of shape (seqs_len, num_site_states) of single site
+                frequencies after they are regularized.
+        """
+        #TODO  add attribute pseudocount  for DI computation
+        
+        fi = self.get_single_site_freqs()
+        logger.info('\n\tComputing regularized single-site frequencies')
+        fi_reg = msa_numerics.get_reg_single_site_freqs(
+            single_site_freqs = fi, 
+            seqs_len = self.__seqs_len, 
+            num_site_states = self.__num_site_states, 
+            pseudocount = 0.5
+        )
+        return fi_reg 
+
+    
+    def compute_two_site_model_fields(self, couplings = None):
+        """Computes two-site model fields. These fields are used for the 
+        computation of the direct information.
+
+        Parameters
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+            couplings : np.array 
+                A 1 D array of couplings
+            
+        Returns
+        -------
+            two_site_model_fields : np.array 
+                A numpy array of shape (P, 2, num_site_states), where P is the number
+                of unique site pairs excluding self pairings.
+                P = seqs_len * (seqs_len - 1)/2.
+        """
+        if couplings is None: couplings = self.get_couplings_no_gap_state()
+        reg_fi = self.get_reg_single_site_freqs()
+
+        logger.info('\n\tComputing two-site model fields') 
+        two_site_model_fields = msa_numerics.compute_two_site_model_fields(
+            couplings = couplings, 
+            reg_fi = reg_fi, 
+            seqs_len = self.__seqs_len, 
+            num_site_states = self.__num_site_states
+            )
+        return two_site_model_fields
+
+
+    def compute_direct_unsorted_DI(self):
+        """Compute plmDCA direct information score
+
+        Parameters
+        ---------- 
+            self : PlmDCA
+                An instance of PlmDCA class
+        
+        Returns
+        -------
+            di_scores : np.array 
+                 A 1d numpy array of shape (P, ) containing the values of
+                direct informations (DI).  P is the total number of unique site pairs.
+                Example, index P = 0 contains DI of pair (0, 1),index P = 1 that
+                of (0, 2) and so on. The last pair is (L-2, L-1).  Note that the
+                direct information is computed from couplings and fields that involve
+                residues, although the direct probability is computed for all couplings
+                and new fields. The couplings involving a gap are set to 0. The fields
+                of gap states are not necessarily zero, they are  the new fields as
+                computed by two site model. If Pdir is the direct probabiliy of shape
+                (q, q), we use Pdir[:q-1, :q-1] when computing the direct information.
+        """
+
+        
+        couplings = self.get_couplings_no_gap_state()
+        reg_fi = self.get_reg_single_site_freqs()
+        two_site_model_fields = self.compute_two_site_model_fields(couplings = couplings)
+        logger.info('\n\tComputing direct information')
+        di_scores = msa_numerics.compute_direct_info(
+            couplings = couplings, 
+            fields_ij = two_site_model_fields,
+            reg_fi = reg_fi, 
+            seqs_len = self.__seqs_len, 
+            num_site_states = self.__num_site_states
+        )
+        return di_scores 
+        
+    
+    def compute_sorted_DI(self):
+        """Sorted the DI score
+
+        Parameters
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+        
+        Returns
+        -------
+            sorted_di : tuple of site pairs and DCA scores of the form
+                (((0, 1), score1), ((0,2), score2 ...)
+        """
+        di_scores= self.compute_direct_unsorted_DI()
+        di_scores_dict = dict()
+        pair_counter = 0
+        for i in range(self.__seqs_len - 1):
+            for j in range(i + 1, self.__seqs_len):
+                site_pair = (i, j)
+                di_scores_dict[site_pair] = di_scores[pair_counter]
+                pair_counter += 1
+        sorted_di = sorted(di_scores_dict.items(), key =lambda k : k[1], reverse=True)
+        return sorted_di
+
+    
+    def compute_sorted_DI_APC(self):
+        """Performs average product correction of DI scores and sorts them in reverse order.
+
+        Parameters
+        ----------
+            self : PlmDCA
+                An instance of PlmDCA class
+        
+        Returns
+        -------
+            sorted_DI_apc : list
+                A list of tuples the tuples containing (pair, score). The list is
+                sorted by score in descending order.
+        """
+        sorted_DI = self.compute_sorted_DI()
+        logger.info('\n\tPerforming average product correction (APC) of DI scores')
+        # compute the average score of each site
+        av_score_sites = list()
+        N = self.__seqs_len 
+        for i in range(N):
+            i_scores = [score for pair, score in sorted_DI if i in pair]
+            assert len(i_scores) == N - 1
+            i_scores_sum = sum(i_scores)
+            i_scores_ave = i_scores_sum/float(N - 1)
+            av_score_sites.append(i_scores_ave)
+        # compute average product corrected DI
+        av_all_scores = sum(av_score_sites)/float(N)
+        sorted_DI_apc = list()
+        for pair, score in sorted_DI:
+            i, j = pair
+            score_apc = score - av_score_sites[i] * (av_score_sites[j]/av_all_scores)
+            sorted_DI_apc.append((pair, score_apc))
+        # sort the scores as doing APC may have disrupted the ordering
+        sorted_DI_apc = sorted(sorted_DI_apc, key = lambda k : k[1], reverse=True)
+        return sorted_DI_apc 
         
 
 

@@ -4,7 +4,7 @@
 #endif
 #include <stdexcept> 
 #include "include/plmdca.h"
-#include <stdio.h>
+#include <cstdio>
 
 /*
     Implements pseudolikelihood maximization direct couplings analysis for 
@@ -43,7 +43,7 @@ PlmDCA::PlmDCA(
     this->seqs_int_form = readSequencesFromFile();
     this->num_seqs = this->seqs_int_form.size();
     this->seqs_weight = this->computeSeqsWeight();
-    this->Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
+    this->Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.f);
     
 }
 
@@ -63,7 +63,7 @@ std::vector<std::vector<float>> PlmDCA::getSingleSiteFreqs()
     std::vector<std::vector<float>> single_site_freqs(this->seqs_len);
     std::vector<float> current_site_freqs(this->num_site_states);
     for(unsigned int i = 0; i < this->seqs_len; ++i){
-        std::fill(current_site_freqs.begin(), current_site_freqs.end(), 0.0);
+        std::fill(current_site_freqs.begin(), current_site_freqs.end(), 0.f);
         for(unsigned int n = 0; n < this->num_seqs; ++n){
             auto a = this->seqs_int_form[n][i];
             current_site_freqs[a] += this->seqs_weight[n]; 
@@ -100,8 +100,8 @@ std::vector<float> PlmDCA::getPairSiteFreqs()
     auto const& q = this->num_site_states;
     auto const& Nseq = this->num_seqs;
     auto const freqs_size = (L*(L - 1)/2)*q*q;
-    std::vector<float> fij(freqs_size, 0.0);
-    float Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
+    std::vector<float> fij(freqs_size, 0.f);
+    float Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.f);
     float MeffInv = 1.0/Meff;
     
     //TODO  set num_threads only if OpenMP is supported during compilation.
@@ -149,7 +149,7 @@ std::vector<std::vector<std::vector<std::vector<float>>>> PlmDCA::getPairSiteFre
     otherwise it will not be used in production.
     */
 
-    float eff_num_seqs = std::accumulate(this->seqs_weight.begin(),  this->seqs_weight.end(), 0.0);
+    float eff_num_seqs = std::accumulate(this->seqs_weight.begin(),  this->seqs_weight.end(), 0.f);
     auto const& weights = this->seqs_weight;
     auto const& num_seqs = this->num_seqs;
     auto const& seqs_len = this->seqs_len;
@@ -265,15 +265,29 @@ void PlmDCA::initFieldsAndCouplings(float* fields_and_couplings)
     */
         auto single_site_freqs =  this->getSingleSiteFreqs();
         unsigned int index;
-        float epsilon = 1.0;
+        float epsilon = 1.f;
         for(unsigned int i = 0; i < this->seqs_len; ++i){
             for(unsigned int a = 0; a < this->num_site_states; ++a){
-                index = a + this->num_site_states*i;
-                fields_and_couplings[index] = std::log(single_site_freqs[i][a] * this->Meff + epsilon);
+                index = a + this->num_site_states * i;
+                fields_and_couplings[index] = std::log(single_site_freqs[i][a] * this->Meff  + epsilon);
             }
         }
+
+        for(unsigned int i = 0; i < this->seqs_len; ++i){
+
+            auto start_indx = i * this->num_site_states;
+            auto end_indx = start_indx + this->num_site_states;
+            auto hi_sum = std::accumulate(fields_and_couplings + start_indx, fields_and_couplings + end_indx, 0.f);
+            auto hi_sum_av = hi_sum/this->num_site_states;
+            for(unsigned int a = 0; a < this->num_site_states; ++a){
+                auto index = a + this->num_site_states * i;
+                fields_and_couplings[index] -= hi_sum_av;
+            }
+        }
+
+        
         for(unsigned int i = this->num_fields; i < this->num_fields_and_couplings; ++i){
-            fields_and_couplings[i] = 0.0;
+            fields_and_couplings[i] = 0.f;
 
         }
     
@@ -488,8 +502,7 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     auto const& lh = this->lambda_J;
     auto const& lJ = this->lambda_J;
 
-    float fx = 0.0;
-    //for(unsigned int i = 0; i < this->num_fields_and_couplings; ++i) grad[i] =  0.0;
+    float fx = 0.f;
     
     // Gradients of L2-norm regularization terms.
     for(unsigned int i = 0; i < L; ++i){
@@ -498,7 +511,7 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
             //auto const& hia = fields_and_couplings[indx_ia];
             auto const hia = fields_and_couplings[a + i * q];
             //grad[indx_ia] += 2.0 * lh * hia;
-            grad[a + q * i] = 2.0 * lh * hia;
+            grad[a + q * i] = 2.f * lh * hia;
             fx += lh *  hia * hia;
         }
     }
@@ -512,7 +525,7 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
                     //auto const& Jijab = fields_and_couplings[indx_ij_ab];
                     auto const& Jijab = fields_and_couplings[k + b + q * a];
                     //grad[indx_ij_ab] += 2.0 * lJ * Jijab;
-                    grad[k + b + q * a] = 2.0 * lJ * Jijab;
+                    grad[k + b + q * a] = 2.f * lJ * Jijab;
                     fx += lJ *  Jijab * Jijab;
                 }
             }
@@ -523,10 +536,10 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     // Compute gradients of the negative of pseudolikelihood from alignment data. 
     #pragma omp parallel for num_threads(this->num_threads)
     for(unsigned int i = 0; i < L; ++i){
-        std::vector<float> prob_ni(q, 0.0);
-        std::vector<float> fields_gradient(q, 0.0);
-        std::vector<float> couplings_gradient(L * q * q, 0.0);
-        float  fxi = 0.0;
+        std::vector<float> prob_ni(q, 0.f);
+        std::vector<float> fields_gradient(q, 0.f);
+        std::vector<float> couplings_gradient(L * q * q, 0.f);
+        float  fxi = 0.f;
         for(unsigned int n = 0; n < Nseq; ++n){
             // compute probability at site i for sequence n
             auto const& current_seq = this->seqs_int_form[n];
@@ -549,11 +562,18 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
                     prob_ni[a] += fields_and_couplings[k + current_seq[j]  + a * q];
                 }
             }
-            auto max_exp = *std::max_element(prob_ni.begin(), prob_ni.end());
+
+            auto max_exp = prob_ni[0];
+            for(unsigned int a = 0; a < q; ++a){
+                if(prob_ni[a] > max_exp) {
+                    max_exp = prob_ni[a];
+                }
+            } 
             for(unsigned int a = 0; a <  q; ++a) prob_ni[a] = std::exp(prob_ni[a] - max_exp);
             
-            float zni = std::accumulate(prob_ni.begin(), prob_ni.end(), 0.0);
-            zni = 1.0/zni;
+            float zni = 0.f;
+            for(unsigned int a = 0; a < q; ++a) zni += prob_ni[a];
+            zni = 1.f/zni;
             for(unsigned int a = 0; a < q; ++a) prob_ni[a] *= zni;
             
             //compute the gradient of the minus log likelihood with respect to fields and couplings
@@ -654,7 +674,7 @@ std::vector<float> PlmDCA::computeSeqsWeight()
     #if defined(_OPENMP)
         //initialize weights to zero for the parallel case since each sequences is going to be compared with itself.
         for(unsigned int i=0; i < this->num_seqs; ++i){
-            m_seqs_weight[i] = 0.0; 
+            m_seqs_weight[i] = 0.f; 
         }
         #pragma omp parallel for num_threads(this->num_threads)
         for(unsigned int i = 0; i < this->num_seqs; ++i){
@@ -666,13 +686,13 @@ std::vector<float> PlmDCA::computeSeqsWeight()
                     if(this->seqs_int_form[i][site] == this->seqs_int_form[j][site]) num_identical_residues++;
                 }
                 similarity_ij = (float)num_identical_residues/(float)this->seqs_len;
-                if (similarity_ij > this->seqid) m_seqs_weight[i] += 1.0;
+                if (similarity_ij > this->seqid) m_seqs_weight[i] += 1.f;
             }
         }
     #else
         // Initialize weights to one for unique sequence pair comparisons.
         for(unsigned int i = 0; i < this->num_seqs; ++i){
-            m_seqs_weight[i] = 1.0;
+            m_seqs_weight[i] = 1.f;
         }
         float similarity_ij;
         unsigned int num_identical_residues;
@@ -684,15 +704,15 @@ std::vector<float> PlmDCA::computeSeqsWeight()
                 }
                 similarity_ij = (float)num_identical_residues/(float)this->seqs_len;
                 if (similarity_ij > this->seqid){
-                    m_seqs_weight[i] += 1.0;
-                    m_seqs_weight[j] += 1.0;
+                    m_seqs_weight[i] += 1.f;
+                    m_seqs_weight[j] += 1.f;
                 }
             }
         }
     #endif
     
     //"Normalize" sequences weight 
-    for(unsigned int i = 0; i < this->num_seqs; ++i) m_seqs_weight[i] = 1.0/m_seqs_weight[i];
+    for(unsigned int i = 0; i < this->num_seqs; ++i) m_seqs_weight[i] = 1.f/m_seqs_weight[i];
     return m_seqs_weight;
 }
 
@@ -704,7 +724,7 @@ void PlmDCA::printWeights()
     for(unsigned int i = 0; i < this->num_seqs; ++i){
         std::cout << "# " << i + 1 << " " << this->seqs_weight[i] << std::endl;
     }
-    std::cout << "#Meff = " << std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0) << std::endl;
+    std::cout << "#Meff = " << std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.f) << std::endl;
 }
 
 //Read alignment from FASTA file

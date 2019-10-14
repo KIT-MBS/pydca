@@ -21,7 +21,7 @@ plmdca_ext = Extension(
     'pydca.plmdca._plmdcaBackend',
     [   
         'pydca/plmdca/lbfgs/lib/lbfgs.cpp',
-        'pydca/plmdca/plmdca.cpp',
+        'pydca/plmdca/plmdca_numerics.cpp',
         'pydca/plmdca/plmdcaBackend.cpp', 
     ],
     include_dirs=[

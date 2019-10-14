@@ -13,64 +13,6 @@ To install the current version of `pydca` from PyPI, run on the command line
 ```bash
 $ pip install pydca
 ```  
-### Installing python3-tk
-```bash
-$ sudo apt install python3-tk
-```
-### Create a virtual environment for Python3
-`pydca` depends on python based libraries, e.g., `numpy`, `scipy`, `matplotlib`, or `biopython`. To avoid conflicts that can arise between different versions of libraries, its recommended that we install `pydca`  separate from other global installations. Here, we use a separate virtual environment using [pipenv](https://docs.pipenv.org/en/latest/). To install `pipenv` use use `pip`. Thus, first we need to install `pip`  for `Python3`.
-
-```bash
-$ sudo apt install python3-pip
-```  
-Now we can install pipenv as follows
-```bash
-$ pip3 install pipenv
-```
-Once `pipenv` is installed we can install `pydca` using `pipenv`. To demonstrate this, lets create a
-directory called `demo`, you can call it another name. We will create this directory in current user's `home` directory. Then, `cd` to this directory and install `pydca` using `pipenv`.
-```bash
-$ mkdir demo && cd demo
-```
-We can see our current directory's path using `pwd` command.
-```bash
-$ pwd
-$ /home/username/demo
-```
-Now we install pydca
-```bash
-$ pipenv install pydca
-```
-At this time, `pipenv` creates a virtual environment for us and installs `pydca` in this newly created virtual environment. After installation is completed `pipenv` has created two files in
-the directory `/home/username/demo`. We can see them as
-```bash
-$ ls
-Pipfile  Pipfile.lock
-```
-These files contain metadata about the virtual environment. Now we can activate the virtual environment
-```bash
-$ pipenv shell
-Launching subshell in virtual environment…
-$  . /home/username/.local/share/virtualenvs/demo-HO4EpenA/bin/activate
-(demo) $
-```
-The virtual environment is now activated. Lets check that we are executing Python from the virtual environment by starting Python shell, importing `sys` module and executing `sys.executable`.
-```bash
-(demo) $ python
-Python 3.5.2 (default, Nov 12 2018, 13:43:14)
-[GCC 5.4.0 20160609] on linux
-Type "help", "copyright", "credits" or "license" for more information.
->>> import sys
->>> sys.executable
-'/home/username/.local/share/virtualenvs/demo-HO4EpenA/bin/python'
->>>
-```
-Lets exit the Python shell. We do this using the `exit()` command.
-```bash
->>> exit()
-(demo) $
-```
-Now we are back in the virtual environment's shell.
 # Running DCA Computation
 When `pydca` is installed, it provides a main command called `mfdca`. Executing this command displays  help messages.
 ```bash

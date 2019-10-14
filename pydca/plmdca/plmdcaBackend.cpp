@@ -35,6 +35,14 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
             Python interface. 
 
     */
+   #if defined(_OPENMP)
+    // can use multiple threads
+    #else 
+        if(num_threads > 1){
+            std::cerr << "Cannot set multiple threads when OpenMP is not supported\n";
+            throw std::runtime_error("Invalid number of threads");
+        }
+    #endif
 
     const int total_num_params = seqs_len * num_site_states + seqs_len * (seqs_len - 1) * num_site_states * num_site_states/2 ; 
     static PlmDCA plmdca_inst(msa_file, biomolecule, seqs_len, num_site_states, seqid, lambda_h, lambda_J, num_threads);
@@ -77,9 +85,12 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
                 //initialize parameters
                 lbfgs_parameter_t param;
                 lbfgs_parameter_init(&param);
-                param.epsilon = 1E-4;
+                param.epsilon = 1E-3;
                 param.max_iterations = num_iterations;
-                
+                param.max_linesearch = 5;
+                param.ftol = 1E-4;
+                //param.wolfe = 0.2;
+                param.m = 5 ;
 
                 plmdca_inst.initFieldsAndCouplings(m_x);
                 //Start the L-BFGS optimization; this will invoke the callback functions
@@ -89,8 +100,8 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
 
                 /* Report the result. */
                 if(logging){
-                    printf("L-BFGS optimization terminated with status code = %d\n", ret);
-                    printf("  fx = %f, x[0] = %f, x[1] = %f\n", fx, m_x[0], m_x[1]);
+                    fprintf(stderr, "L-BFGS optimization terminated with status code = %d\n", ret);
+                    fprintf(stderr, "fx = %f\n", fx);
                 }
         
                 return ret;
@@ -141,10 +152,9 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
                 const float step, int n, int k, int ls)
             {
                 if(logging){
-                    printf("Iteration %d:\n", k);
-                    printf("  fx = %f, x[0] = %f, x[1] = %f\n", fx, x[0], x[1]);
-                    printf("  xnorm = %f, gnorm = %f, step = %f\n", xnorm, gnorm, step);
-                    printf("\n");
+                    fprintf(stderr, "Iteration %d:\n", k);
+                    fprintf(stderr, "fx = %f xnorm = %f, gnorm = %f, step = %f\n", fx, xnorm, gnorm, step);
+                    fprintf(stderr, "\n");
                 }
                 return 0;
             }
@@ -166,7 +176,7 @@ extern "C" void freeFieldsAndCouplings(void * h_and_J)
 {  
     /*  Frees memory that has been used to store fields and couplings before 
         they are captured in the Python interface. 
-        Parameter h_and_J must pass using ctypes.byref from Python.
+        Parameter h_and_J must be passed using ctypes.byref from Python.
 
         Parameters
         ----------

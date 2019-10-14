@@ -1,16 +1,18 @@
 # About `pydca`
-`pydca` is a Python implementation of direct coupling analysis (DCA) of residue coevolution for protein and RNA sequence families using the **__mean-field__** and **__pseudolikelihood maximization__** algorithms. Given multiple sequence alignment (MSA) files in FASTA format, `pydca` computes the coevolutionary scores of pairs of sites in the alignment. In addition, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA. Furthermore, `pydca`  provides commands to compute the parameters of the energy function, compare and visualize contact map or true positive rates of DCA predicted residue pairs.
+`pydca` is Python implementation of direct coupling analysis (DCA) of residue coevolution for protein and RNA sequence families using the **__mean-field__** and **__pseudolikelihood maximization__** algorithms. Given multiple sequence alignment (MSA) files in FASTA format, `pydca` computes the coevolutionary scores of pairs of sites in the alignment. In addition, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA. The software provides command line utilities or it can be used as a library. 
 
 # Prerequisites
-pydca is implemented mainly in Python3 with the pseudolikelihood maximization parameter inference part implemented using C++ back end for optimization. To install pydca and successfully carry out DCA computations, the following are required. 
-* Python3, version 3.5 or latter.
-* python3-tk
-* C++ compiler
-* OpenMP
+``pydca` is implemented mainly in Python with the pseudolikelihood maximization parameter inference part implemented using C++ backend for optimization. To install pydca and successfully carry out DCA computations, the following are required. 
+* Python 3, version 3.5 or latter.
+* C++ compiler that supports C++11 (we recommend GCC).
+* Optionally  OpenMP for multithreading support.
 
 
 # Installing
-Here we show installation of `pydca` in a Linux (Ubuntu) machine. A similar procedure is used for other Linux/Unix machines as well as Mac or Windows platforms.
+To install the current version of `pydca` from PyPI, run on the command line
+```bash
+$ pip install pydca
+```  
 ### Installing python3-tk
 ```bash
 $ sudo apt install python3-tk

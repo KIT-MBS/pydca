@@ -31,7 +31,7 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
 
     Returns
     -------
-        h_and_J        : Fields and couplings array. This data is feteched into the
+        h_and_J        : Fields and couplings array. This data is fetched into the
             Python interface. 
 
     */
@@ -153,7 +153,7 @@ extern "C" float* plmdcaBackend(unsigned short const biomolecule,
             {
                 if(logging){
                     fprintf(stderr, "Iteration %d:\n", k);
-                    fprintf(stderr, "fx = %f xnorm = %f, gnorm = %f, step = %f\n", fx, xnorm, gnorm, step);
+                    fprintf(stderr, "fx = %f, xnorm = %f, gnorm = %f, step = %f\n", fx, xnorm, gnorm, step);
                     fprintf(stderr, "\n");
                 }
                 return 0;

@@ -23,17 +23,6 @@ plmdca_protein = plmdca.PlmDCA('protein', msa_file,
     num_threads=6, 
 )
 
-# In the above we have created plmdca instance for a protein sequence whose MSA data
-# is going to be read from the parameter msa_file. In addition we have set the 
-# values of optional paramters. seqid sets the threshold value for sequence 
-# similarity, lambda_h sets the values of L2 norm regularization parameter for fields
-# and lambda_J for that of the the couplings. Finally we set the number of threads 
-# for parallel execution to be 6. Note that we can use multiple threads 
-# only when pydca installation was done with OpenMP support. If OpenMP is not 
-# supported we can still carry out plmDCA computation althought it can only be 
-# done using a single threads which might be slow for large alignment data.
-
-
 # compute sorted Frobenius norm of the couplings, average product corrected 
 fn_scores_apc = plmdca_protein.compute_sorted_FN_APC()
 

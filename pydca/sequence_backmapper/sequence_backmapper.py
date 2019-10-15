@@ -374,8 +374,8 @@ class SequenceBackmapper:
                 A dictionary containing the position of mapped residues as they
                 appear in the reference sequence as keys and their corresponding
                 mapping index in the MSA as values. E.g. {4:9, 5:10, 6:13, ..}
-                mapps residue 5 (index 4) of reference sequence to index 9 (site 10)
-                in the MSA ... and so on. The non-aligned residues that might
+                mapps site 5 (index 4) in the MSA to index 9 (site 10) int the
+                reference sequence, ... and so on. The non-aligned residues that might
                 appear at the begining or end of the matching subsequences are
                 not mapped.
         """

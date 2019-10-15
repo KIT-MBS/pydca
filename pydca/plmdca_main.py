@@ -85,6 +85,7 @@ class CmdArgs:
     """
 # end of class CmdArgs 
 
+DCA_COMPUTATION_SUBCOMMANDS = ('compute_fn', 'compute_di', 'compute_params', 'debug')
 
 def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=None, 
         max_iterations = None, num_threads=None, verbose=False):
@@ -152,43 +153,76 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
 
     if verbose : configure_logging()
     
-    plmdca_instance = get_plmdca_inst(biomolecule, msa_file, seqid=seqid, 
-        lambda_h=lambda_h, lambda_J=lambda_J, max_iterations = max_iterations, 
-        num_threads = num_threads, verbose=verbose
+    plmdca_instance = get_plmdca_inst(msa_file, biomolecule, seqid = seqid, 
+        lambda_h = lambda_h, lambda_J = lambda_J, max_iterations = max_iterations, 
+        num_threads = num_threads, verbose = verbose
     )
 
-# compute Frobenius norm of couplings
-    if the_command=='compute_fn':
-        #create path to output directory is not supplied by user
+    # Compute FN or DI scores
+    if the_command in DCA_COMPUTATION_SUBCOMMANDS:
+        param_metadata = dca_utilities.plmdca_param_metadata(plmdca_instance)
         if not output_dir:
             msa_file_base_name, ext = os.path.splitext(os.path.basename(msa_file))
             output_dir = 'PLMDCA_output_' + msa_file_base_name
-        #create dca coutput directory
-        dca_utilities.create_directories(output_dir)
-        param_metadata = dca_utilities.plmdca_param_metadata(plmdca_instance)
-        mapped_sites = None
+            #create dca coutput directory
+            dca_utilities.create_directories(output_dir)
+            mapped_sites = None
         if refseq_file:# do backmapping when reference sequence file is provided
-            seq_backmapper = SequenceBackmapper(
+            seqbackmapper = SequenceBackmapper(
                 msa_file = msa_file,
                 refseq_file = refseq_file,
-                biomolecule = plmdca_instance.biomolecule)
-            mapped_sites = seq_backmapper.map_to_reference_sequence()
-        if apc:
-            score_type = 'PLMDCA Frobenius norm, average product corrected (APC)'
-            sorted_FN = plmdca_instance.compute_sorted_FN_APC()
-            fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                msa_file, prefix = 'PLMDCA_apc_fn_scores_', postfix='.txt'
+                biomolecule = plmdca_instance.biomolecule
             )
-        else:
-            score_type = 'PLDCA Frobenius norm, non-APC (not average product corrected)'
-            sorted_FN = plmdca_instance.compute_sorted_FN()
-            fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                msa_file, prefix = 'PLMDCA_raw_fn_scores_', postfix='.txt'
+            mapped_sites = seqbackmapper.map_to_reference_sequence()
+        #subcommand compute_fn
+        if the_command=='compute_fn':
+            if apc:
+                score_type = 'PLMDCA Frobenius norm, average product corrected (APC)'
+                sorted_FN = plmdca_instance.compute_sorted_FN_APC()
+                fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'PLMDCA_apc_fn_scores_', postfix='.txt'
+                )
+            else:
+                score_type = 'PLMDCA Frobenius norm, non-APC (not average product corrected)'
+                sorted_FN = plmdca_instance.compute_sorted_FN()
+                fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'PLMDCA_raw_fn_scores_', postfix='.txt'
+                )
+            dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_FN,
+                site_mapping = mapped_sites, metadata = param_metadata,
+                score_type = score_type
             )
-        dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_FN,
-            site_mapping = mapped_sites, metadata = param_metadata,
-            score_type = score_type
-        )    
+        #subcommand compute_di 
+        if the_command == 'compute_di':
+            if apc:
+                score_type = 'PLMDCA  DI scores, average product corrected (APC)'
+                sorted_DI = plmdca_instance.compute_sorted_DI_APC()
+                fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'PLMDCA_apc_di_scores_', postfix='.txt'
+                )
+            else:
+                score_type = 'PLMDCA DI scores, non-APC (not average product corrected)'
+                sorted_DI = plmdca_instance.compute_sorted_DI()
+                fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'PLMDCA_raw_di_scores_', postfix='.txt'
+                )
+            dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_DI,
+                site_mapping = mapped_sites, metadata = param_metadata,
+                score_type = score_type
+            )
+            
+        #subcommand debug
+        if the_command=='debug':
+            score_type = 'PLMDCA direct information scores non-APC'
+            di_scores =  plmdca_instance.compute_sorted_FN_APC_mapped(seqbackmapper) 
+            fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                msa_file, prefix = 'PLMDCA_raw_di_scores_', postfix='.txt'
+            )         
+            dca_utilities.write_sorted_dca_scores(fn_file_path, di_scores,
+                site_mapping = mapped_sites,
+                metadata = param_metadata,
+                score_type = score_type,
+            )
     return None 
 
 
@@ -197,6 +231,7 @@ def run_plm_dca():
     """
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest = CmdArgs.subcommand_name)
+    #parser compute_fn
     parser_compute_fn = subparsers.add_parser('compute_fn', help='computes the Frobenius norm of couplings.')
     parser_compute_fn.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
     parser_compute_fn.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
@@ -209,6 +244,44 @@ def run_plm_dca():
     parser_compute_fn.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
     parser_compute_fn.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
     parser_compute_fn.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+
+    #parser compute_DI_FN
+    parser_compute_di = subparsers.add_parser('compute_di', help='computes the direct information')
+    parser_compute_di.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
+    parser_compute_di.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
+    parser_compute_di.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
+    parser_compute_di.add_argument(CmdArgs.lambda_h_optional, help=CmdArgs.lambda_h_optional_help, type=float)
+    parser_compute_di.add_argument(CmdArgs.lambda_J_optional, help=CmdArgs.lambda_J_optional_help, type=float)
+    parser_compute_di.add_argument(CmdArgs.max_iterations_optional, help=CmdArgs.max_iterations_help, type=int)
+    parser_compute_di.add_argument(CmdArgs.num_threads_optional, help=CmdArgs.num_threads_help, type=int)
+    parser_compute_di.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
+    parser_compute_di.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
+    parser_compute_di.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
+    parser_compute_di.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    
+    #parser compute_params
+    parser_compute_params = subparsers.add_parser('compute_params', help='computes fields and couplings')
+    parser_compute_params.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
+    parser_compute_params.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
+    parser_compute_params.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
+    parser_compute_params.add_argument(CmdArgs.lambda_h_optional, help=CmdArgs.lambda_h_optional_help, type=float)
+    parser_compute_params.add_argument(CmdArgs.lambda_J_optional, help=CmdArgs.lambda_J_optional_help, type=float)
+    parser_compute_params.add_argument(CmdArgs.max_iterations_optional, help=CmdArgs.max_iterations_help, type=int)
+    parser_compute_params.add_argument(CmdArgs.num_threads_optional, help=CmdArgs.num_threads_help, type=int)
+    parser_compute_params.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
+    parser_compute_params.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
+    parser_compute_params.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    
+    #parser debug
+    parser_debug = subparsers.add_parser('debug', help='debug plmdca')
+    parser_debug.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
+    parser_debug.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
+    parser_debug.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
+    parser_debug.add_argument(CmdArgs.num_threads_optional, type = int, help = CmdArgs.num_threads_optional)
+    parser_debug.add_argument(CmdArgs.max_iterations_optional, type = int, help = CmdArgs.max_iterations_optional)
+    parser_debug.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_debug.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
+
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args_dict = vars(args)
 

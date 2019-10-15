@@ -700,7 +700,7 @@ class RNASecStructContent:
             logger.error('\n\tUnable to get secondary structure data from'
                 ' file {}'.format(self.__secstruct_file)
             )
-            raise RNASecStructException
+            raise RNASecStructContentException
         brackets = list(self.__left_brackets) + list(self.__right_brackets)
         allowed_symbols = brackets + list(self.__nonwc_symbols)
         for val in secstruct_str:
@@ -708,7 +708,7 @@ class RNASecStructContent:
                 logger.error('\n\t{} is invalid symbol to represent RNA secondary'
                     ' structure'.format(val)
                 )
-                raise RNASecStructException
+                raise RNASecStructContentException
         logger.info('\n\tSecondary structure:'
             '\n\t\t{}'.format(secstruct_str),
         )
@@ -786,7 +786,7 @@ class DCAContent:
         self.__dca_ranked_pairs : list(tuples)
             A list containing tuples of DCA ranked pairs.
     """
-    def __init__(self, dca_file):
+    def __init__(self, dca_file = None, sorted_dca_scores=None):
         """Initializes DCAContent objects
 
         Parameters
@@ -799,7 +799,13 @@ class DCAContent:
             None : None
         """
         self.__dca_file = dca_file
-        self.__dca_ranked_pairs = self.shift_dca_ranked_pair_indices()
+        if dca_file is not None:
+            self.__dca_ranked_pairs = self.shift_dca_ranked_pair_indices()
+        elif sorted_dca_scores is not None:
+            self.__dca_ranked_pairs = self.get_dca_pairs_from_score_list(sorted_dca_scores)
+        if dca_file is None and sorted_dca_scores is None:
+            logger.error('\n\tPlease provide a DCA file or a list of ranked site pairs')
+            raise DCAContentException
         self.__num_dca_ranked_pairs = len(self.__dca_ranked_pairs)
         return None
 
@@ -837,6 +843,25 @@ class DCAContent:
         """
 
         return self.__num_dca_ranked_pairs
+
+
+    def get_dca_pairs_from_score_list(self, sorted_dca_scores):
+        """Obtains DCA ranked site pairs from a list of tuples site-pair and score.
+
+        Parameters
+        ----------
+            self : DCAContent
+                An instance of DCAContent class
+            sorted_dca_scores : list of tuples
+                A lisf to tuple of site pair and scores sorted by score in reverse
+                order
+        Returns
+        -------
+            ranked_site_pairs : list 
+                A lisf of site pairs 
+        """
+        ranked_site_pairs = [pair for pair, score in sorted_dca_scores]
+        return ranked_site_pairs
 
     def shift_dca_ranked_pair_indices(self):
         """DCA output files contain pairs of sites that are labeled starting
@@ -921,8 +946,9 @@ class DCAVisualizer:
     """
 
     def __init__(self, biomolecule, pdb_chain_id, pdb_file, refseq_file = None,
-            dca_file = None, rna_secstruct_file = None, linear_dist = None,
-            contact_dist = None, num_dca_contacts = None, wc_neighbor_dist = None,
+            dca_file = None, sorted_dca_scores = None, rna_secstruct_file = None, 
+            linear_dist = None, contact_dist = None, num_dca_contacts = None, 
+            wc_neighbor_dist = None,
             pdb_id = None):
         """Initializes ContactVisualizer instance with attributes:
         self.__pdb_content and self.__refseq_content of type PDBContent and
@@ -973,7 +999,9 @@ class DCAVisualizer:
             self.__refseq_content = None
         #initialize a DCAContent
         if dca_file is not None:
-            self.__dca_content = DCAContent(dca_file)
+            self.__dca_content = DCAContent(dca_file=dca_file)
+        elif sorted_dca_scores is not None:
+            self.__dca_content = DCAContent(sorted_dca_scores=sorted_dca_scores)
         else:
             self.__dca_content = None
         #initialize a SecStructContent
@@ -1623,7 +1651,7 @@ class DCAVisualizer:
 
         num_contacts_compared = len(true_positives) + len(false_positives)
         fraction_of_true_positives = float(len(true_positives))/float(num_contacts_compared)
-        fig, ax = plt.subplots(ncols=1, nrows=1)
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(5,5))
         if missing_dca_contacts:
             x_missing, y_missing = self.split_and_shift_contact_pairs(
                 missing_dca_contacts
@@ -1742,7 +1770,7 @@ class DCAVisualizer:
         false_positives = contact_categories_dict['fp']
         missing_pairs = contact_categories_dict['missing']
         pdb_contacts =  contact_categories_dict['pdb']
-        fig, ax = plt.subplots(ncols=1, nrows=1)
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(5,5))
         if missing_pairs:
             x_missing, y_missing = self.split_and_shift_contact_pairs(missing_pairs)
             ax.scatter(x_missing, y_missing, s=6, color='blue')
@@ -1884,7 +1912,7 @@ class DCAVisualizer:
         pdb_true_positive_rates = true_positive_rates_dict['pdb']
         max_rank = len(dca_true_positive_rates)
         ranks = [i + 1 for i in range(max_rank)]
-        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5, 5))
         ax.plot(ranks, dca_true_positive_rates)
         ax.plot(ranks, pdb_true_positive_rates)
         ax.set_xscale('log')

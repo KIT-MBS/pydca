@@ -73,7 +73,7 @@ class MeanFieldDCA:
     """
     def __init__(
             self, msa_file_name, biomolecule, pseudocount=None,
-            sequence_identity=None, force_seq_type=False):
+            seqid=None, force_seq_type=False):
         """MeanFieldDCA object class initializer
         Parameters
         ----------
@@ -85,7 +85,7 @@ class MeanFieldDCA:
             pseudocount : float
                 Parameter for regularizing data before DCA analysis.
                 Default value is 0.5
-            sequence_identity : float
+            seqid : float
                 This parameter's value measure the maximum
                 similarity two or more sequences can have so that they can be
                 considered distinct, or lumped together otherwise.
@@ -106,14 +106,14 @@ class MeanFieldDCA:
         """
 
         self.__pseudocount = pseudocount  if pseudocount is not None else 0.5
-        self.__sequence_identity = sequence_identity if sequence_identity is not None else 0.8
+        self.__seqid = seqid if seqid is not None else 0.8
         #Validate the value of pseudo count incase user provide an invalid one
         if self.__pseudocount >= 1.0 or self.__pseudocount < 0:
             logger.error('\n\tValue of relative pseudo-count must be'
             ' between 0 and 1.0. Typical value is 0.5')
             raise ValueError
         #Validate the value of sequence identity
-        if self.__sequence_identity > 1.0 or self.__sequence_identity <= 0.0:
+        if self.__seqid > 1.0 or self.__seqid <= 0.0:
             logger.error('\n\tValue of sequence-identity must'
             ' not exceed 1 nor less than 0. Typical values are 0.7, 0.8., 0.9')
             raise ValueError
@@ -132,26 +132,29 @@ class MeanFieldDCA:
         raw_data = fasta_reader.get_alignment_from_fasta_file(self.__msa_file_name)
         num_unique_res = len(set([res for seq in raw_data for res in seq]))
         logger.info('\n\tTotal number of unique site states'
-            ' found in alignment data: {}'.format(num_unique_res))
-        if num_unique_res < self.__num_site_states or num_unique_res > 2*self.__num_site_states:
-            if not force_seq_type:
-                logger.error('\n\tThe total number of unique residues plus gap\n\t'
-                'found in the alignment file is {}. For {} the anticipated\n\t'
-                'number is {}. This error can happen, for example, when\n\t'
-                'there are too many non-standared residues in alignment\n\t'
-                'data or if protein is entered instead of RNA. To disregared\n\t'
-                'the error and continue, Use --force_seq_type command or\n\t'
-                'enter correct biomolecule type'.format(num_unique_res,
-                    biomolecule, self.__num_site_states))
-                raise ValueError
-        self.__sequences = fasta_reader.get_alignment_int_form(self.__msa_file_name,
+            ' found in alignment data: {}'.format(num_unique_res)
+        )
+        #DISABLED force_seq_type
+        #if num_unique_res < self.__num_site_states or num_unique_res > 2*self.__num_site_states:
+        #    if not force_seq_type:
+        #        logger.error('\n\tThe total number of unique residues plus gap\n\t'
+        #        'found in the alignment file is {}. For {} the anticipated\n\t'
+        #        'number is {}. This error can happen, for example, when\n\t'
+        #        'there are too many non-standared residues in alignment\n\t'
+        #        'data or if protein is entered instead of RNA. To disregared\n\t'
+        #       'the error and continue, Use --force_seq_type command or\n\t'
+        #        'enter correct biomolecule type'.format(num_unique_res,
+        #            biomolecule, self.__num_site_states))
+        #       raise ValueError
+        self.__sequences = fasta_reader.get_alignment_int_form(
+            self.__msa_file_name,
             biomolecule=biomolecule,
-            )
+        )
 
         self.__num_sequences = len(self.__sequences)
         self.__sequences_len = len(self.__sequences[0])
         self.__biomolecule = biomolecule
-        if self.__sequence_identity < 1.0:
+        if self.__seqid < 1.0:
             self.__sequences_weight = self.compute_sequences_weight()
         else :
             self.__sequences_weight = np.ones((self.__num_sequences,), dtype = np.float64)
@@ -171,10 +174,10 @@ class MeanFieldDCA:
             biomolecule,
             self.__num_site_states,
             self.__pseudocount,
-            self.__sequence_identity,
+            self.__seqid,
             self.__sequences_len,
             self.__num_sequences,
-            self.__sequence_identity,
+            self.__seqid,
             self.__effective_num_sequences,
         )
         logger.info(mf_dca_info)
@@ -199,7 +202,7 @@ class MeanFieldDCA:
         return description
 
 
-    def __call__(self, pseudocount = 0.5 , sequence_identity = 0.8):
+    def __call__(self, pseudocount = 0.5 , seqid = 0.8):
         """Resets the value of pseudo count and sequence identity through
         the instance.
 
@@ -210,7 +213,7 @@ class MeanFieldDCA:
             pseudocount : float
                 The value of the raltive pseudo count. It must be between
                 0 and 1. Default value is 0.5.
-            sequence_identity : float
+            seqid : float
                 Threshold sequence similarity for computing sequences weight.
                 This parameter must be between 0 and 1. Typical values are
                 0.7, 0.8, 0.9 or something in between these numbers.
@@ -222,11 +225,11 @@ class MeanFieldDCA:
 
         #warn the user that paramertes are being reset
         self.__pseudocount = pseudocount
-        self.__sequence_identity = sequence_identity
+        self.__seqid = seqid
         logger.warning('\n\tYou have changed one of the parameters (pseudo count or sequence identity)'
         '\n\tfrom their default values'
         '\n\tpseudocount: {} \n\tsequence_identity: {}'.format(
-            self.__pseudocount, self.__sequence_identity,
+            self.__pseudocount, self.__seqid,
             )
         )
         return None
@@ -326,12 +329,12 @@ class MeanFieldDCA:
 
         Returns
         -------
-            self.__sequence_identity : float
+            self.__seqid : float
                 Cut-off value for sequences similarity above which sequences are
                 considered identical
         """
 
-        return self.__sequence_identity
+        return self.__seqid
 
 
     @property
@@ -412,7 +415,7 @@ class MeanFieldDCA:
         logger.info('\n\tComputing sequences weights')
         weights = msa_numerics.compute_sequences_weight(
             alignment_data= np.array(self.__sequences, dtype=np.int32),
-            sequence_identity = self.__sequence_identity,
+            seqid = self.__seqid,
         )
         return weights
 

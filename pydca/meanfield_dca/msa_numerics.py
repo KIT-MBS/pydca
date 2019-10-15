@@ -10,9 +10,8 @@ Direct Coupling Analysis.
 Author : Mehari B. Zerihun
 """
 
-
 @jit(nopython=True, parallel=True)
-def compute_sequences_weight(alignment_data=None, sequence_identity=None):
+def compute_sequences_weight(alignment_data=None, seqid=None):
     """Computes weight of sequences. The weights are calculated by lumping
     together sequences whose identity is greater that a particular threshold.
     For example, if there are m similar sequences, each of them will be assigned
@@ -24,7 +23,7 @@ def compute_sequences_weight(alignment_data=None, sequence_identity=None):
         alignmnet_data : np.array()
             Numpy 2d array of the alignment data, after the alignment is put in
             integer representation
-        sequence_identity : float
+        seqid : float
             Value at which beyond this sequences are considered similar. Typical
             values could be 0.7, 0.8, 0.9 and so on
 
@@ -44,7 +43,7 @@ def compute_sequences_weight(alignment_data=None, sequence_identity=None):
         for j in range(num_seqs):
             seq_j = alignment_data[j]
             iid = np.sum(seq_i==seq_j)
-            if np.float64(iid)/np.float64(seqs_len) > sequence_identity:
+            if np.float64(iid)/np.float64(seqs_len) > seqid:
                 seqs_weight[i] += 1
     #compute the weight of each sequence in the alignment
     for i in range(num_seqs): seqs_weight[i] = 1.0/float(seqs_weight[i])
@@ -205,7 +204,6 @@ def compute_pair_site_freqs(alignment_data=None, num_site_states=None, seqs_weig
             ... (L-1, L). This ordering is critical and any change must be
             documented.
     """
-    
     alignment_shape = alignment_data.shape
     num_seqs = alignment_shape[0]
     seqs_len = alignment_shape[1]
@@ -229,7 +227,6 @@ def compute_pair_site_freqs(alignment_data=None, num_site_states=None, seqs_weig
                     freq_ia_jb = np.sum(count_ai_bj*seqs_weight)
                     pair_site_freqs[pair_site, a-1, b-1] += freq_ia_jb/m_eff
     return pair_site_freqs 
-
 
 @jit(nopython=True)
 def get_reg_pair_site_freqs(pair_site_freqs = None, seqs_len = None,
@@ -499,7 +496,7 @@ def compute_direct_info(couplings = None, fields_ij = None, reg_fi = None,
     num_unique_pairs = np.int64(seqs_len * (seqs_len - 1)/2)
     unsorted_DI = np.zeros(num_unique_pairs, dtype=np.float64)
     q = num_site_states
-    EPSILON = 1.0e-50
+    EPSILON = 1.0e-20
     pair_counter = 0
     for i in range(seqs_len - 1):
         fi = reg_fi[i]

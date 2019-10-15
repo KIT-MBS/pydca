@@ -127,7 +127,7 @@ def get_mfdca_instance(msa_file, biomolecule, force_seq_type=False, **kwargs):
     seqid = kwargs.get('seqid')
     pseudocount = kwargs.get('pseudocount')
     mfdca_inst = meanfield_dca.MeanFieldDCA(msa_file, biomolecule,
-        pseudocount=pseudocount,sequence_identity=seqid,
+        pseudocount=pseudocount,seqid=seqid,
         force_seq_type=force_seq_type)
     return mfdca_inst
 

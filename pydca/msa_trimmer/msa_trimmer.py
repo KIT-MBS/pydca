@@ -192,3 +192,17 @@ class MSATrimmer:
             )
 
         return tuple(columns_to_remove)
+
+    
+    def get_msa_trimmed_by_refseq(self, remove_all_gaps=False):
+        """
+        """
+        columns_to_remove = self.trim_by_refseq(remove_all_gaps=remove_all_gaps)
+        trimmed_msa = list()
+        for record in self.__alignment_data:
+            seq, seqid = record.seq, record.id
+            trimmed_seq = [seq[i] for i in range(len(seq)) if i not in columns_to_remove]
+            id_seq_pair = seqid, ''.join(trimmed_seq) 
+            trimmed_msa.append(id_seq_pair)
+        return trimmed_msa
+

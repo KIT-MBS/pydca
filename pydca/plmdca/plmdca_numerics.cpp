@@ -106,7 +106,7 @@ std::vector<float> PlmDCA::getPairSiteFreqs()
     
     #pragma omp parallel for num_threads(this->num_threads)
     for(unsigned int i = 0; i < L; ++i){
-        std::vector<float> current_fij(L*q*q, 0.0);
+        std::vector<float> current_fij(L*q*q, 0.f);
         for(unsigned int n = 0; n < Nseq; ++n){
             auto const& current_seq_weight = this->seqs_weight[n];
             auto const& current_seq = this->seqs_int_form[n];
@@ -235,7 +235,7 @@ void PlmDCA::printPairSiteFreqsFragmented()
 void PlmDCA::testSingleSiteFreqs()
 {
     auto ssfreqs = this->getSingleSiteFreqs();
-    float Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.0);
+    float Meff = std::accumulate(this->seqs_weight.begin(), this->seqs_weight.end(), 0.f);
     std::cout << "Effective number of sequences = " << Meff << std::endl;
     for(unsigned int i = 0;  i < this->seqs_len; ++i){
         float local_freqs_sum = 0.0;
@@ -509,7 +509,6 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
             //auto const& indx_ia = this->mapIndexFields(i, a);
             //auto const& hia = fields_and_couplings[indx_ia];
             auto const hia = fields_and_couplings[a + i * q];
-            //grad[indx_ia] += 2.0 * lh * hia;
             grad[a + q * i] = 2.f * lh * hia;
             fx += lh *  hia * hia;
         }
@@ -523,7 +522,6 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
                     //auto const& indx_ij_ab = this->mapIndexCouplings(i, j, a, b);
                     //auto const& Jijab = fields_and_couplings[indx_ij_ab];
                     auto const& Jijab = fields_and_couplings[k + b + q * a];
-                    //grad[indx_ij_ab] += 2.0 * lJ * Jijab;
                     grad[k + b + q * a] = 2.f * lJ * Jijab;
                     fx += lJ *  Jijab * Jijab;
                 }
@@ -671,7 +669,8 @@ std::vector<float> PlmDCA::computeSeqsWeight()
     std::vector<float> m_seqs_weight(this->num_seqs);
 
     #if defined(_OPENMP)
-        //initialize weights to zero for the parallel case since each sequences is going to be compared with itself.
+        //initialize weights to zero for the parallel case since each sequences 
+        //is going to be compared with itself.
         for(unsigned int i=0; i < this->num_seqs; ++i){
             m_seqs_weight[i] = 0.f; 
         }
@@ -775,6 +774,8 @@ std::vector<std::vector<unsigned int>>  PlmDCA::readSequencesFromFile()
        res_mapping['V'] = 4; res_mapping['W'] = 4; res_mapping['X'] = 4;
        res_mapping['Y'] = 4; res_mapping['Z'] = 4;
     }
+    //TODO obtain the number of sequences and reserver memory to seqs_int_form
+    //to avoid reallocation of memorry.
     std::vector<std::vector<unsigned int>> seqs_int_form;
     std::ifstream msa_file_stream(this->msa_file);
     std::string current_line;

@@ -35,7 +35,7 @@ plmdca_ext = Extension(
 
 setup(
     name="pydca",
-    version="0.2",
+    version="1.0",
     author="Mehari B. Zerihun",
     author_email="mbzerihun@gmail.com",
     python_requires=">=3.5",
@@ -46,6 +46,7 @@ setup(
     packages=find_packages(
         exclude=["*.tests","*.tests.*","tests.*", "tests",
             "*.extras", "*.extras.*", "extras.*", "extras",
+            "examples", "*.examples", "examples.*", "*.examples.*",
             "install.sh",
         ],
     ),

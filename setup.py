@@ -5,11 +5,11 @@ with open("README.md") as fh:
     long_description = fh.read()
 
 requirements = [
-    "biopython>=1.72",
-    "numpy<=1.15.4",
-    "scipy>=1.2.0rc1",
-    "numba>=0.40.1",
-    "matplotlib>=3.0.3",
+    "scipy==1.3.1",
+    "biopython==1.72",
+    "numpy>=1.13.3, <=1.15.4",
+    "numba==0.46.0",
+    "matplotlib==3.1.1",
     "requests>=2.22.0",
 ]
 
@@ -43,6 +43,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/KIT-MBS/pydca",
+    download_url="https://pypi.org/project/pydca/",
     packages=find_packages(
         exclude=["*.tests","*.tests.*","tests.*", "tests",
             "*.extras", "*.extras.*", "extras.*", "extras",
@@ -53,10 +54,12 @@ setup(
     ext_modules = [plmdca_ext],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: C++11",
+        "Programming Language :: C++",
         "Programming Language :: C",
         "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",
+        "Operating System :: POSIX :: Linux",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     install_requires= requirements,
     tests_require = requirements,

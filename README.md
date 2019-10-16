@@ -12,108 +12,57 @@
 To install the current version of `pydca` from PyPI, run on the command line
 ```bash
 $ pip install pydca
-```  
-# Running DCA Computation
-When `pydca` is installed, it provides a main command called `mfdca`. Executing this command displays  help messages.
-```bash
-(demo) $ mfdca
-usage: mfdca [-h]
-              {compute_di,compute_fn,compute_couplings,compute_fields,compute_fi ...
-....
 ```
-In the above, we have truncated the help message.
-
-To compute DCA scores summarized by direct information score, we can execute
+# Using `pydca` as a Python Library
+After installation, pydca can be imported into other Python source codes and used. 
+[Here is IPython Notebook example](https://github.com/KIT-MBS/pydca/blob/master/examples/pydca_demo.ipynb).  
+# Running `pydca` From Command Line
+When `pydca` is installed, it provides three main command. Namely `pydca`, `plmdca`, and `mfdca`. 
+The command `pydca` is used for tasks such as trimming alignment data before DCA computation, and 
+visualization of contact maps or true positive rates. The other two command are associated with 
+DCA computation with the pseudolikelihood maximization algorithm (plmDCA) or the mean-field algorithm (mfDCA).
+Below we show some usage examples of all the three commands.
+## Trimming MSA data 
+Trim gaps by reference sequence:
 ```bash
-(demo) $ mfdca compute_di <biomolecule> <msa_file>  --apc --verbose
+$ pydca trim_by_refseq <biomolecule>  <alignment.fa>  <refseq_file.fa> --remove_all_gaps --verbose
 ```
-`<biomolecule>` takes either `protein` or `rna` (case insensitive). The `<msa_file>` is
-a FASTA formated multiple sequence alignment file. The optional argument `--apc` allows to make average product correction (APC) of DCA scores and  `--verbose` triggers
-logging messages to be displayed on the screen as DCA computation progresses. Thus, an exaple of DCA computation for an MSA file `alignment.fa` containing protein sequences would be:
-```bash
-(demo) $ mfdca compute_di protein alignment.fa --apc --verbose
+Trim by percentage of gaps in MSA columns:
+```bash 
+$ pydca trim_by_gap_size <alignmnet.fa> --max_gap 0.9 --verbose
 ```
-There are a few subcommand in the pydca, e.g., to compute parameters of the global probability function, frequencies of alignment data,  DCA scores summarized by Frobenius norm.
-One can lookup the help messages corresponding to a particular sub(command). Example:
-```bash
-(demo) $ mfdca compute_di --help
-usage: mfdca compute_di [-h] [--verbose] [--apc] [--seqid SEQID]
-                        [--pseudocount PSEUDOCOUNT]
-                        [--refseq_file REFSEQ_FILE] [--output_dir OUTPUT_DIR]
-                        [--force_seq_type]
-                        biomolecule msa_file
-...................................................
+### DCA Computation
+#### Using `pydca`'s Pseudolikelihood Maximization Algorithm
+```bash 
+$ plmdca compute_fn <biomolecule> <alignment.fa> --max_iterations 500 --num_threads 6 --apc --verbose 
 ```
-Finally, the current virtual environment can be deactivated using `exit` command.
-
-# Commonly Used Commands
-Information about the commands  and subcommands can be obtained using the `--help` optional argument from the command line.  Below is a summary of commonly used commands.
-##  Computing DCA Scores
-In `pydca` DCA scores can be computed from the direct information score or from the Frobenius norm of the couplings using the `compute_di` or `compute_fn` subcommands. Example:
+We can also the values of regularization parameters 
 ```bash
-$ mfdca compute_di <biomolecule> <msa_file> --verbose
+$ plmdca compute_fn <biomolecule> <alignment.fa> --apc --lambda_h 1.0 --lambda_J 50.0 --verbose 
 ```
-or
+The command `compute_fn` computes DCA scores obtained from the Frobenius norm of the couplings. `--apc` performs
+average product correction (APC). To obtain DCA scores from direct-information (DI) we replace the subcommand 
+`compute_fn` by `compute_di`. 
+#### Using `pydca`'s Mean-Field Algorithm 
 ```bash
-$ mfdca  compute_fn <biomolecule> <msa_file> --verbose
+$ mfdca compute_fn <biomolecule> <alignment.fa> --apc --pseudocount 0.5 --verbose
 ```
-To compute the average product corrected DCA score, we can use the `--apc` optional argument. Example:
-
+### Contact Map Visualization 
+When protein/RNA sequence family has a resolved PDB structure, we can evaluate the 
+performance of `pydca` by contact map visualization. Example:
 ```bash
-$ mfdca compute_di <biomolecule> <msa_file> --apc --verbose
+$ pydca plot_contact_map <biomolecule> <PDB_chain_name> <PDB_id/PDB_file.PDB> <refseq.fa> <DCA_file.txt> --verbose  
 ```
-We can also set the values of the relative pseudocount and sequence identity. The default values are 0.5 and 0.8, respectively.
-
+### Plotting True Positive Rate
+In addition to contact map we can evaluate the performance of `pydca` by plotting 
+the true positive rate. 
 ```bash
-$ mfdca  compute_di <biomolecule> <msa_file> --pseudocount 0.3 --seqid 0.9 --verbose
+$ pydca plot_contact_map <biomolecule> <PDB_chain_name> <PDB_id/PDB_file.PDB> <refseq.fa> <DCA_file.txt> --verbose
 ```
-Furthermore, we can supply a FASTA formatted file containing a reference sequence so that DCA scores corresponding to residue pairs of that particular sequence are computed. Example:
-
+To get help message about a (sub)command  we use, for example, 
 ```bash
-$ mfdca compute_di <biomolecule> <msa_file> --refseq_file <refseq_file> --verbose
+$ pydca --help
 ```
-## Plotting Contact Maps or True Positive Rates
-
-Residue pairs ranked by DCA score can be visualized and compared with an existing PDB contact map. Example:
-
 ```bash
-$ mfdca plot_contact_map <biomolecule> <pdb_chain_id>  <pdb_file> <refseq_file> <dca_file> --linear_dist 5 --contact_dist 9.5 --num_dca_contacts 100 --verbose
-```
-In the above the optional argument `--linear_dist` filters out residue pairs that are not at least 5 residues apart in the sequence, `--contact_dist` sets the maximum distance (in Angstrom) between two residue pairs to be considered contacts in the PDB structure, and `--num_dca_contacts` sets the number of top DCA ranked residue pairs to be taken for contact map comparison. Two residues in a PDB structure are considered to be contacts if they have at least a pair of heavy atoms that are less than the distance set by `--contact_dist ` parameter.
-
-A similar command can be used to plot the true positive rates of DCA ranked residues pairs, except that there is no restriction on the number of DCA ranked pairs. Example:
-
-```bash
-$ mfdca plot_tp_rate <biomolecule> <pdb_chain_id> <pdb_file> <ref_seq_file> --linear_dist 5 --contact_dist 8.5 --verbose
-```
-
-## Computing Couplings and Fields
-
-The couplings and fields can be computed in a single step or separately. To compute these parameters in one run we can use the `compute_params` subcommand. Example:
-
-```bash
-$ mfdca compute_params <biomolecule> <msa_file>  --pseudocount 0.4 --seqid 0.9 --verbose
-```
-
-or to compute the couplings alone
-```bash
-$ mfdca compute_couplings <biomolecule> <msa_file> --pseudocount 0.4 --seqid 0.9 --verbose
-```
-and the fields
-
-```bash
-$ mfdca compute_fields <biomolecule> <msa_file> --pseudocount 0.3 --seqid  0.75 --verbose
-```
-
-## Computing Single- and Pair-site Frequencies
-
-By default `pydca` uses a relative pseudocount of 0.5 thus the frequencies are regularized. To compute non-regularized frequencies we need to set the pseudocount to zero. Example:
-
- ```bash
- $ mfdca compute_fi <biomolecule> <msa_file> --pseudocount 0 --verbose
- ```
-The `compute_fi` subcommand computes single-site frequencies. To compute pair-site frequencies, we use the `compute_fij` subcommand.
-
-```bash
-$ mfdca compute_fij <biomolecule> <msa_file> --pseudocount 0 --verbrose
+$ plmdca compute_fn  --help
 ```

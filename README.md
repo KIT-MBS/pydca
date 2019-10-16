@@ -13,6 +13,10 @@ To install the current version of `pydca` from PyPI, run on the command line
 ```bash
 $ pip install pydca
 ```
+or you can use the `install.sh` bash script as 
+```bash 
+$ source install.sh
+```
 # Using `pydca` as a Python Library
 After installation, pydca can be imported into other Python source codes and used. 
 [Here is IPython Notebook example](https://github.com/KIT-MBS/pydca/blob/master/examples/pydca_demo.ipynb). 

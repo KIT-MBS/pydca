@@ -15,7 +15,9 @@ $ pip install pydca
 ```
 # Using `pydca` as a Python Library
 After installation, pydca can be imported into other Python source codes and used. 
-[Here is IPython Notebook example](https://github.com/KIT-MBS/pydca/blob/master/examples/pydca_demo.ipynb).  
+[Here is IPython Notebook example](https://github.com/KIT-MBS/pydca/blob/master/examples/pydca_demo.ipynb). 
+If you encounter a problem opening the Ipython Notebook example, copy and past the URL [here](https://nbviewer.jupyter.org/).
+
 # Running `pydca` From Command Line
 When `pydca` is installed, it provides three main command. Namely `pydca`, `plmdca`, and `mfdca`. 
 The command `pydca` is used for tasks such as trimming alignment data before DCA computation, and 

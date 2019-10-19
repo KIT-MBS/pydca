@@ -15,7 +15,6 @@ if command -v python3 &> /dev/null; then
 			echo "ERROR: You have older Python version: version=${PYTHON_VERSION}"
 	else
 		echo "Python 3 version found: ${PYTHON_VERSION}"
-		echo 'pip is installed'
 		echo 'installing pydca'
 		pip install pydca
 	fi

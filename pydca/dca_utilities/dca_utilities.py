@@ -233,8 +233,7 @@ def get_ranked_pairs(sorted_DI, site_mapping = None):
 
     return ranked_pairs_list
 
-def write_sorted_dca_scores(file_name, sorted_DI, site_mapping=None,
-    metadata=None, score_type = None):
+def write_sorted_dca_scores(file_name, sorted_DI, metadata=None, score_type = None):
     """Writes sorted direct information to file.
 
     Parameters
@@ -243,9 +242,6 @@ def write_sorted_dca_scores(file_name, sorted_DI, site_mapping=None,
             Path to file where DCA data is going to be saved.
         sorted_DI : list
             A list containing site pair
-        site_mapping : dict
-            A dictionary of mappings between the sites in the reference sequence
-            and that of the MSA.
         metadata : list
             A list of strings that describes the metadata to be written to ouput
             file.
@@ -257,44 +253,6 @@ def write_sorted_dca_scores(file_name, sorted_DI, site_mapping=None,
         None
     """
     logger.info('\n\tWriting DCA scores to file {}'.format(file_name))
-    mapped_DI = list()
-    if site_mapping: # Map sites when reference sequence is supplied
-        mapping_key_file = os.path.join(os.path.dirname(file_name), 'mapping_key.txt')
-        logger.info('\n\tWriting site mapping key in file: {}'.format(mapping_key_file))
-        mapping_key_pairs = list(site_mapping.items())
-        with open(mapping_key_file, 'w') as mpk_fh:
-            mpk_fh.write('# The first column represents sites in the MSA.'
-                '\n# The second is the corresponding position in '
-                '\n# the reference sequence. For example 9--->1 means the Ninth site in'
-                '\n# the MSA is mapped to the First in the reference.\n'
-            )
-            for pair in mapping_key_pairs:
-                mpk_fh.write('{}--->{}\n'.format(pair[0] + 1, pair[1] + 1))
-        num_skipped_pairs = 0
-        for pair, score in sorted_DI: # iterate over all unique pairs (i, j) for all j > i
-                try:                  # and corresponding DCA scores.
-                    mapped_pair = tuple([site_mapping[pair[0]], site_mapping[pair[1]]])
-                except KeyError:
-                    num_skipped_pairs += 1
-                else:
-                    if mapped_pair[0] > mapped_pair[1]:
-                        logger.error('\n\tIncorrect ordering of mapped residues.'
-                        '\n\tfirst residue position ({}) is greater than'
-                        '\n\tsecond residue position ({})'.format(mapped_pair[0],
-                                mapped_pair[1]
-                            )
-                        )
-                    pair_and_score = tuple([mapped_pair, score])
-                    mapped_DI.append(pair_and_score)
-        logger.info('\n\tTotal number of site pairs in MSA not mapped to'
-            ' reference: {}'.format(num_skipped_pairs))
-    if site_mapping and not mapped_DI:
-        logger.warn('\n\tSearch for mapping sites based on site mapping'
-            ' dictionary failed.\n Writing to file skipped')
-        return None
-
-    if mapped_DI: sorted_DI = mapped_DI
-
     with open(file_name, 'w') as fh:
         fh.write('#' + '='*70 + '\n')
         if metadata:

@@ -9,34 +9,6 @@ for protein and RNA sequences using the mean-field algorithm. The final
 coevolution score is computed from the direct probability. The general steps
 carried out are outlined as follows
 
-1. Creation of a MeanFieldDCA object
-    In this step a MeanFieldDCA object is instantiated with a few attributes.
-    The sequences weight is used for computing single and pair site frequncies
-    which, in turn are used for the construction of correlation matrix. In addi-
-    tion, single site frequencies are used for computing two-site model fields.
-
-2. Construction of correlation matrix
-    In this step, the matrix of correlation is computed from regularized pair-site
-    and single site frequency counts.
-
-3. Computing couplings
-    Once the matrix of correlations is computed, couplings are computed from the
-    inverse of the correlation matrix. Note that the couplings are the negative
-    of the inverse of the correlation matrix.
-
-4. Computing direct information
-    The direct information is computed from the direct probabiliy. To compute
-    the direct probablity, new local fields are introduced such that the
-    emperical (regularized) single site frequency counts match to the
-    corresponding marginal probabilites of the direct probability.
-
-5. The final step is sorting pair of sites according to coevolutionary score
-    in descending order. This is dome by  MeanFieldDCA.compute_sorted_DI method.
-
-6. Optionally, one can compute the average product corrected DCA score.  This has
-    shown to improve contact prediction in DCA and related methods.
-
-
 For a detailed information about Direct Coupling Analysis, one can refer to the
 following articles:
 
@@ -71,9 +43,7 @@ class MeanFieldDCA:
     Coupling Analysis (DCA) of residue coevolution using the mean-field DCA
     algorithm.
     """
-    def __init__(
-            self, msa_file_name, biomolecule, pseudocount=None,
-            seqid=None, force_seq_type=False):
+    def __init__(self, msa_file_name, biomolecule, pseudocount=None, seqid=None):
         """MeanFieldDCA object class initializer
         Parameters
         ----------
@@ -89,17 +59,6 @@ class MeanFieldDCA:
                 This parameter's value measure the maximum
                 similarity two or more sequences can have so that they can be
                 considered distinct, or lumped together otherwise.
-            force_seq_type : bool
-                Sequences types are typically distinguished by the residue
-                representations in the MSA file. Typically, the anticipated
-                number of residues plus gap state is 21 for proteins and 5 for
-                RNAs. However, it is possible that MSA data can contain
-                contain non-standred residues. To avoid confusion about the
-                biomolecule type, the default behaviour is to raise error when
-                the number of residues plus gap deviates significantly. If the
-                user is sure about the biomolecule type is set correctly, they
-                can enforce force_seq_type = True option to by pass the error and
-                proceed the computation.
         Returns
         -------
             None : None
@@ -119,33 +78,16 @@ class MeanFieldDCA:
             raise ValueError
         biomolecule = biomolecule.strip().upper()
         self.__msa_file_name = msa_file_name
-        if biomolecule=='RNA'.strip():
+        if biomolecule=='RNA':
             self.__num_site_states = 5
-        elif biomolecule=='PROTEIN'.strip():
+        elif biomolecule=='PROTEIN':
             self.__num_site_states = 21
         else:
             logger.error(
                 '\n\tUnknown biomolecule ... must be protein (PROTEIN) or rna (RNA)',
             )
             raise ValueError
-        #verify biomolecule type
-        raw_data = fasta_reader.get_alignment_from_fasta_file(self.__msa_file_name)
-        num_unique_res = len(set([res for seq in raw_data for res in seq]))
-        logger.info('\n\tTotal number of unique site states'
-            ' found in alignment data: {}'.format(num_unique_res)
-        )
-        #DISABLED force_seq_type
-        #if num_unique_res < self.__num_site_states or num_unique_res > 2*self.__num_site_states:
-        #    if not force_seq_type:
-        #        logger.error('\n\tThe total number of unique residues plus gap\n\t'
-        #        'found in the alignment file is {}. For {} the anticipated\n\t'
-        #        'number is {}. This error can happen, for example, when\n\t'
-        #        'there are too many non-standared residues in alignment\n\t'
-        #        'data or if protein is entered instead of RNA. To disregared\n\t'
-        #       'the error and continue, Use --force_seq_type command or\n\t'
-        #        'enter correct biomolecule type'.format(num_unique_res,
-        #            biomolecule, self.__num_site_states))
-        #       raise ValueError
+        
         self.__sequences = fasta_reader.get_alignment_int_form(
             self.__msa_file_name,
             biomolecule=biomolecule,
@@ -157,6 +99,7 @@ class MeanFieldDCA:
         if self.__seqid < 1.0:
             self.__sequences_weight = self.compute_sequences_weight()
         else :
+            # assign each sequence a weight of one
             self.__sequences_weight = np.ones((self.__num_sequences,), dtype = np.float64)
         self.__effective_num_sequences = np.sum(self.__sequences_weight)
         #sometimes users might enter the wrong biomolecule type
@@ -699,9 +642,47 @@ class MeanFieldDCA:
         return fields, couplings
 
 
-    def compute_sorted_DI(self):
-        """Computes direct informations for each pair of sites and sorts them in
-        descending order of DCA score.
+    def  get_mapped_site_pairs_dca_scores(self, sorted_dca_scores, seqbackmapper):
+        """Filters mapped site pairs with a reference sequence. 
+
+        Parameters
+        -----------
+            self : PlmDCA
+                An instance of PlmDCA class
+            sorted_dca_scores : tuple of tuples
+                A tuple of tuples of site-pair and DCA score sorted by DCA scores 
+                in reverse order.
+            seqbackmapper : SequenceBackmapper 
+                An instance of SequenceBackmapper class
+        
+        Returns
+        -------
+            sorted_scores_mapped : tuple
+                A tuple of tuples of site pairs and dca score
+        """
+        mapping_dict = seqbackmapper.map_to_reference_sequence()
+        # Add attribute __reseq_mapping_dict
+        self.__refseq_mapping_dict = mapping_dict 
+        sorted_scores_mapped = list()
+        num_mapped_pairs = 0
+        for pair, score in sorted_dca_scores:
+            try:
+                mapped_pair = mapping_dict[pair[0]], mapping_dict[pair[1]]
+            except  KeyError:
+                pass 
+            else:
+                current_pair_score = mapped_pair, score 
+                sorted_scores_mapped.append(current_pair_score)
+                num_mapped_pairs += 1
+        # sort mapped pairs in case they were not
+        sorted_scores_mapped = sorted(sorted_scores_mapped, key = lambda k : k[1], reverse=True)
+        logger.info('\n\tTotal number of mapped sites: {}'.format(num_mapped_pairs))
+        return tuple(sorted_scores_mapped)
+
+    
+    def get_site_pair_di_score(self):
+        """Obtains computed direct information (DI) scores from backend and
+        puts them a list of tuples of in (site-pair, score) form.
 
         Parameters
         ----------
@@ -710,16 +691,11 @@ class MeanFieldDCA:
 
         Returns
         -------
-            sorted_DI : list
+            site_pair_di_score : list
                 A list of tuples containing site pairs and DCA score, i.e., the
-                contents of sorted_DI are [((i, j), score), ...] for all unique
-                site pairs (i, j) with corresponding DCA score as computed from
-                mean-field DCA. Note that i and j start from 0.
-
-             couplings : np.array
-                A 2d numpy array of the couplings.
+                list [((i, j), score), ...] for all unique ite pairs (i, j) 
+                such that j > i.
         """
-
         reg_fi = self.get_reg_single_site_freqs()
         reg_fij = self.get_reg_pair_site_freqs()
         corr_mat = self.construct_corr_mat(reg_fi, reg_fij)
@@ -734,35 +710,60 @@ class MeanFieldDCA:
             num_site_states = self.__num_site_states,
         )
 
-        sorted_DI = dict()
+        site_pair_di_score= dict()
         pair_counter = 0
         for i in range(self.__sequences_len - 1):
             for j in range(i + 1, self.__sequences_len):
                 site_pair = (i , j)
-                sorted_DI[site_pair] = unsorted_DI[pair_counter]
+                site_pair_di_score[site_pair] = unsorted_DI[pair_counter]
                 pair_counter += 1
-        sorted_DI = sorted(sorted_DI.items(), key = lambda k : k[1], reverse=True)
-        return sorted_DI, couplings
+        return site_pair_di_score
+
+    def compute_sorted_DI(self, seqbackmapper=None):
+        """Computes direct informations for each pair of sites and sorts them in
+        descending order of DCA score.
+
+        Parameters
+        ----------
+            self : MeanFieldDCA
+                The instance.
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class.
+
+        Returns
+        -------
+            sorted_DI : list
+                A list of tuples containing site pairs and DCA score, i.e., the
+                contents of sorted_DI are [((i, j), score), ...] for all unique
+                site pairs (i, j) such that j > i.
+        """
+        unsorted_DI = self.get_site_pair_di_score()
+        sorted_DI = sorted(unsorted_DI.items(), key = lambda k : k[1], reverse=True)
+        if seqbackmapper is not None:
+            sorted_DI = self.get_mapped_site_pairs_dca_scores(sorted_DI, seqbackmapper)
+        return sorted_DI
 
 
-    def compute_sorted_DI_APC(self):
+    def compute_sorted_DI_APC(self, seqbackmapper=None):
         """Computes the average DI score for every site.
 
         Parameters
         ----------
             self : MeanFieldDCA
                 An instance of MeanFieldDCA class
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class.
         Returns
         -------
-            sorted_DI_apc : list
-                A list of tuples the tuples containing (pair, score). The list is
-                sorted by score in descending order.
-
-            couplings : np.array
-                A 2d numpy array of the couplings.
+            sorted_DI_APC : list
+                A list of tuples containing site pairs and DCA score, i.e., the
+                contents of sorted_DI are [((i, j), score), ...] for all unique
+                site pairs (i, j) such that j > i. These DI scores are average 
+                product corrected.
         """
 
-        sorted_DI, couplings = self.compute_sorted_DI()
+        sorted_DI = self.compute_sorted_DI() # we must not supply seqbackmapper at this point. 
+        # the backmapping is done at the end of APC step
         logger.info('\n\tPerforming average product correction (APC) of DI scores')
         # compute the average score of each site
         av_score_sites = list()
@@ -775,27 +776,34 @@ class MeanFieldDCA:
             av_score_sites.append(i_scores_ave)
         # compute average product corrected DI
         av_all_scores = sum(av_score_sites)/float(N)
-        sorted_DI_apc = list()
+        sorted_DI_APC = list()
         for pair, score in sorted_DI:
             i, j = pair
             score_apc = score - av_score_sites[i] * (av_score_sites[j]/av_all_scores)
-            sorted_DI_apc.append((pair, score_apc))
+            sorted_DI_APC.append((pair, score_apc))
         # sort the scores as doing APC may have disrupted the ordering
-        sorted_DI_apc = sorted(sorted_DI_apc, key = lambda k : k[1], reverse=True)
-        return sorted_DI_apc, couplings
+        sorted_DI_APC = sorted(sorted_DI_APC, key = lambda k : k[1], reverse=True)
+        # Now we must do backmapping if seqbackmapper is provided.
+        if seqbackmapper is not None:
+            sorted_DI_APC = self.get_mapped_site_pairs_dca_scores(sorted_DI_APC, seqbackmapper)
+        return sorted_DI_APC
 
 
-    def compute_sorted_FN(self):
+    def compute_sorted_FN(self, seqbackmapper=None):
         """Computes the Frobenius norm of couplings.
         Parameters
         ----------
             self : MeanFieldDCA
-                An instance of MeanFieldDCA class
+                An instance of MeanFieldDCA class.
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class.
 
         Returns
         -------
-            frobenius_norm_sorted   : List of tuples of site pairs and DCA scores
-                sorted by DCA scores.
+            frobenius_norm_sorted   : list
+                A list of tuples containing site pairs and DCA score, i.e., the
+                list [((i, j), score), ...] for all unique
+                site pairs (i, j) such that j > i.
         """
         reg_fi = self.get_reg_single_site_freqs()
         reg_fij = self.get_reg_pair_site_freqs()
@@ -820,39 +828,60 @@ class MeanFieldDCA:
                 fn_ij = np.sqrt(np.sum(cij_new * cij_new))
                 frobenius_norm.append((site_pair, fn_ij))
         frobenius_norm_sorted = sorted(frobenius_norm, key = lambda x : x[1], reverse=True)
+        if seqbackmapper is not None:
+            frobenius_norm_sorted = self.get_mapped_site_pairs_dca_scores(
+                frobenius_norm_sorted, 
+                seqbackmapper
+            )
         return frobenius_norm_sorted
 
 
-    def compute_sorted_FN_APC(self):
+    def compute_sorted_FN_APC(self, seqbackmapper = None):
         """Performs average product correction (APC) on DCA scores
 
         Parameters
         ----------
             self    : MeanFieldDCA
                 An instance of MeanFieldDCA class.
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class.
 
         Returns
         -------
-            frobenius_norm_apc : Average product corrected sorted DCA scores.
+            sorted_FN_APC : list
+                A list of tuples containing site pairs and DCA score, i.e., the
+                list [((i, j), score), ...] for all unique site pairs (i, j) 
+                such that j > i. The DCA scores are average product corrected.
         """
-        raw_fn = self.compute_sorted_FN()
+        raw_FN = self.compute_sorted_FN() # Must not supply seqbackmapper at this stage.
         logger.info('\n\tPerforming average product correction (APC) to Frobenius'
             ' norm of couplings.'
         )
-        fn_site_averages = list()
-        for i in range(self.__sequences_len):
-            scores_i = [score for pair, score in raw_fn if i in pair]
-            scores_i_av = np.mean(scores_i)
-            fn_site_averages.append(scores_i_av)
-        frobenius_norm_apc = list()
-        fn_av = np.mean(fn_site_averages)
-        for pair, fn_ij in raw_fn:
-            fn_i = fn_site_averages[pair[0]]
-            fn_j = fn_site_averages[pair[1]]
-            fn_ij_apc = fn_ij - (fn_i * fn_j)/fn_av
-            frobenius_norm_apc.append(tuple([pair, fn_ij_apc]))
-        frobenius_norm_apc = sorted(frobenius_norm_apc, key=lambda x : x[1], reverse=True)
-        return frobenius_norm_apc
+
+        # compute the average score of each site
+        av_score_sites = list()
+        N = self.__sequences_len
+        for i in range(N):
+            i_scores = [score for pair, score in raw_FN if i in pair]
+            assert len(i_scores) == N - 1
+            i_scores_sum = sum(i_scores)
+            i_scores_ave = i_scores_sum/float(N - 1)
+            av_score_sites.append(i_scores_ave)
+        # compute average product corrected DI
+        av_all_scores = sum(av_score_sites)/float(N)
+        sorted_FN_APC = list()
+        for pair, score in raw_FN:
+            i, j = pair
+            score_apc = score - av_score_sites[i] * (av_score_sites[j]/av_all_scores)
+            sorted_FN_APC.append((pair, score_apc))
+        sorted_FN_APC = sorted(sorted_FN_APC, key=lambda x : x[1], reverse=True)
+        # Must do backmapping is sebackmapper is not None
+        if seqbackmapper is not None:
+            sorted_FN_APC = self.get_mapped_site_pairs_dca_scores(
+                sorted_FN_APC, 
+                seqbackmapper
+            ) 
+        return sorted_FN_APC
 
 
 if __name__ == '__main__':

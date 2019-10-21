@@ -3,7 +3,7 @@
 /*Implements the pseudolikelihood maximization direct couplings analysis 
 for protein and RNA sequences.
 
-Author: Mehari B. Zerihun
+Authors: Mehari B. Zerihun, Fabrizio Pucci
 
 */
 

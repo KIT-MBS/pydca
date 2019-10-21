@@ -12,7 +12,7 @@ import numpy as np
 """Python wrapper for psuedolikelihood maximization direct coupling analysis (plmDCA).
 The gradient decent algorithm is implemented using c++ backend.
 
-Author: Mehari B. Zerihun
+Authors: Mehari B. Zerihun, Fabrizio Pucci
 """
 
 logger = logging.getLogger(__name__)
@@ -159,10 +159,6 @@ class PlmDCA:
         """
         raise NotImplementedError
         
-    
-
-    
-    
 
     def _get_num_and_len_of_seqs(self):
         """Obtains the length of sequences in MSA data.
@@ -183,6 +179,7 @@ class PlmDCA:
         seqs_len = len(msa_data[0])
         return num_seqs, seqs_len
 
+
     def map_index_couplings(self, i, j, a, b):
         """Couplings index mapper.
 
@@ -202,7 +199,7 @@ class PlmDCA:
         return k
     
     
-    def compute_params(self):
+    def get_fields_and_couplings_from_backend(self):
         """Compute fields and couplings using the C++ backend of plmDCA
 
         Parameters
@@ -246,43 +243,48 @@ class PlmDCA:
         return fields_and_couplings 
 
 
-    def get_couplings_no_gap_state(self):
+    def get_couplings_no_gap_state(self, fields_and_couplings_all):
         """Extract the couplings from fields and couplings numpy array
 
         Parameters
         ----------
-            self :   PlmDCA 
+            self : PlmDCA 
                 An instanc of PlmDCA class
+            fields_and_couplings : list/array
+                A list of all fields and couplings, including gap state fields
+                couplings.
         Returns
-        --------
+        -------
             couplings : np.array
                 A one-dimensional array of the couplings
         """
-        fileds_and_couplings  = self.compute_params()
         couplings = list()
         for i in range(self.__seqs_len - 1):
             for j in range(i + 1, self.__seqs_len):
                 for a in range(self.__num_site_states - 1):
                     for b in range(self.__num_site_states -1):
                         indx =  self.map_index_couplings(i, j , a, b)
-                        couplings.append(fileds_and_couplings[indx])
+                        couplings.append(fields_and_couplings_all[indx])
         return np.array(couplings)
 
     
-    def get_fields_no_gap_state(self):
+    def get_fields_no_gap_state(self, fields_and_couplings_all):
         """Extracts the fields from fields and couplings numpy array.
 
         Parameters
         ----------
             self : PlmDCA
                 An instance of PlmDCA class
+            fields_and_couplings : list/array
+                A list of all fields and couplings, including gap state fields
+                couplings.
         Returns
         --------
             fields_no_gap_state : list 
                 A  list of fields excluding fields corresponding to gap states.
         """
-        fields_and_couplings = self.compute_params()
-        fields_all = fields_and_couplings[:self.__seqs_len * self.__num_site_states]
+        
+        fields_all = fields_and_couplings_all[:self.__seqs_len * self.__num_site_states]
         fields_no_gap_state = list()
         for i in range(self.__seqs_len):
             for a in range(self.__num_site_states - 1): # iterate over q - 1 states to exclude gaps
@@ -290,7 +292,7 @@ class PlmDCA:
         return fields_no_gap_state
 
     
-    def get_fields_and_couplings_gaps_removed(self):
+    def get_fields_and_couplings_no_gap_state(self, fields_and_couplings_all):
         """Computes fields and couplings excluding gap state fields and gap state
         couplings.
 
@@ -298,6 +300,9 @@ class PlmDCA:
         ----------
             self : PlmDCA 
                 An instance of PlmDCA class
+            fields_and_couplings : list/array
+                A list of all fields and couplings, including gap state fields
+                couplings.
         
         Returns
         --------
@@ -305,32 +310,93 @@ class PlmDCA:
                 A tuple of list of fields and couplings
         """
 
-        fields_and_couplings = self.compute_params()
-        all_fields = fields_and_couplings[: self.__seqs_len * self.__num_site_states]
-        all_couplings = fields_and_couplings[self.__seqs_len * self.__num_site_states: ]
-        logger.info('\n\tObtaining fields and couplings excluding gap state.')
-        fields_no_gap_state =  list() 
-        for i in range(self.__seqs_len):
-            for a in range(self.__num_site_states - 1):
-                    fields_no_gap_state.append(all_fields[ a + i * self.__num_site_states])
         
-        couplings_no_gap_state = list()
-        for i in range(self.__seqs_len):
-            for a in range(self.__num_site_states - 1):
-                for b in range(self.__num_site_states - 1):
-                    indx = b + self.__num_site_states * ( a + self.__num_site_states * i)
-                    couplings_no_gap_state.append(all_couplings[indx])
+        logger.info('\n\tObtaining fields and couplings excluding gap state.')
+        fields_no_gap_state = self.get_fields_no_gap_state(fields_and_couplings_all)
+        couplings_no_gap_state = self.get_couplings_no_gap_state(fields_and_couplings_all)
+        
         return fields_no_gap_state, couplings_no_gap_state
 
+    def shitf_couplings(self, couplings_ij):
+        """Shifts the couplings value.
 
-    def get_fields_and_couplings(self):
-        """Interface for method get_fields_and_couplings_gaps_removed(self)
+        Parameters
+        ----------
+            self : PlmDCA 
+                An instance of PlmDCA class
+            couplings_ij : np.array
+                1d array of couplings for site pair (i, j)
+        Returns
+        -------
+            shifted_couplings_ij : np.array
+                A 2d array of the couplings for site pair (i, j)
         """
-        fields, couplings = self.get_fields_and_couplings_gaps_removed()
-        return fields, couplings 
+        qm1 = self.__num_site_states - 1
+        couplings_ij = np.reshape(couplings_ij, (qm1,qm1))
+        avx = np.mean(couplings_ij, axis=1)
+        avx = np.reshape(avx, (qm1, 1))
+        avy = np.mean(couplings_ij, axis=0)
+        avy = np.reshape(avy, (1, qm1))
+        av = np.mean(couplings_ij)
+        couplings_ij = couplings_ij -  avx - avy + av
+        return couplings_ij 
+
+    def compute_params(self, seqbackmapper=None, ranked_by='FN'):
+        """Computes fields and couplings.
+        """
+        RANKING_METHODS = ('FN', 'FN_APC', 'DI', 'DI_APC')
+        ranked_by = ranked_by.strip().upper()
+        if ranked_by not in RANKING_METHODS:
+            logger.error('\n\tInvalid ranking criterion {}.\nChoose from {}'.format(ranked_by, RANKING_METHODS))
+            raise PlmDCAException
+        if ranked_by == 'FN': dca_scores = self.compute_sorted_FN(seqbackmapper=seqbackmapper)
+        if ranked_by == 'FN_APC': dca_scores = self.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
+        if ranked_by == 'DI': dca_scores = self.compute_sorted_DI(seqbackmapper=seqbackmapper)
+        if ranked_by == 'DI_APC': dca_scores = self.compute_sorted_DI_APC(seqbackmapper=seqbackmapper)
+
+        fields = self.get_fields_no_gap_state(self.__fields_and_couplings_all)
+        couplings = self.get_couplings_no_gap_state(self.__fields_and_couplings_all)
+        logger.info('\n\tObtaining fields and couplings for ranked site pairs')
+        
+        qm1 = self.__num_site_states - 1 
+        L = self.__seqs_len
+        if seqbackmapper is not None:
+            mapping_dict = self.__refseq_mapping_dict 
+            # mapping_dict has keys from MSA sites and values from refseq sites
+            # we need to reverse this mapping as the fields and couplings are from MSA sites
+            mapping_dict = {
+                value:key for key, value in mapping_dict.items()
+                }
+        else:
+            mapping_dict = {
+                i : i for i in range(self.__seqs_len)
+            }
+        # we need only the fields corresponding to mapped sites 
+        fields_mapped = list()
+        for i in mapping_dict.keys():
+            im = mapping_dict[i]
+            fields_im = fields[ qm1 * i : qm1 * i + qm1]
+            site_fields = i, fields_im
+            fields_mapped.append(site_fields)
+    
+        pair_couplings_ranked = list()
+        
+        for pair, score in dca_scores:
+            i, j = mapping_dict[pair[0]], mapping_dict[pair[1]]
+            if(i > j): 
+                logger.error('\n\tInvalid site pair. Site pair (i, j) should be ordered in i < j')
+                raise PlmDCAException
+            start_indx = int(((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * qm1 * qm1)
+            end_indx = start_indx + qm1 * qm1
+            couplings_ij = couplings[start_indx:end_indx]
+            #couplings_ij = self.shitf_couplings(couplings_ij)
+            couplings_ij = np.reshape(couplings_ij, (qm1, qm1))
+            ranked_pair_couplings_ij = pair, couplings_ij   
+            pair_couplings_ranked.append(ranked_pair_couplings_ij)
+        return tuple(fields_mapped), tuple(pair_couplings_ranked) 
 
 
-    def compute_sorted_FN(self):
+    def compute_sorted_FN(self, seqbackmapper=None):
         """Computes DCA scores using the Frobenius norm of the couplings. Note 
         that this score is not average product corrected.
 
@@ -348,7 +414,10 @@ class PlmDCA:
         dca_scores_not_apc = list()
         L = self.__seqs_len
         q = self.__num_site_states
-        couplings = self.get_couplings_no_gap_state()
+        fields_and_couplings = self.get_fields_and_couplings_from_backend()
+        # add attribute fields and couplings
+        self.__fields_and_couplings_all = fields_and_couplings
+        couplings = self.get_couplings_no_gap_state(fields_and_couplings)
         qm1 = q - 1
         logger.info('\n\tComputing non-APC sorted DCA score') 
         for i in range(self.__seqs_len -1):
@@ -369,17 +438,22 @@ class PlmDCA:
                 data = ((i, j), dca_score)
                 dca_scores_not_apc.append(data)
         dca_scores_not_apc = sorted(dca_scores_not_apc, key=lambda k : k[1], reverse=True)
+        if seqbackmapper is not None:
+            dca_scores_not_apc = self.get_mapped_site_pairs_dca_scores(dca_scores_not_apc, seqbackmapper)
         return dca_scores_not_apc
 
 
-    def compute_sorted_FN_APC(self):
+    def compute_sorted_FN_APC(self, seqbackmapper=None):
         """Performs average product correction (APC) of the Frobenius norm of the
-        couplings for the plmDCA
+        couplings for the plmDCA. If A SequenceBackmapper object is provided, 
+        dca scores corresponding to mapped site-pairs are computed.
 
         Parameters
         ---------
             self : PlmDCA
                 An instance of PlmDCA class
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class
 
         Returns 
         -------
@@ -407,10 +481,12 @@ class PlmDCA:
             sorted_FN_APC.append((pair, score_apc))
         # sort the scores as doing APC may have disrupted the ordering
         sorted_FN_APC = sorted(sorted_FN_APC, key = lambda k : k[1], reverse=True)
+        if seqbackmapper is not None:
+            sorted_FN_APC = self.get_mapped_site_pairs_dca_scores(sorted_FN_APC, seqbackmapper)
         return sorted_FN_APC
 
     
-    def  get_mapped_dca_scores(self, sorted_dca_scores, seqbackmapper):
+    def  get_mapped_site_pairs_dca_scores(self, sorted_dca_scores, seqbackmapper):
         """Filters mapped site pairs with a reference sequence. 
 
         Parameters
@@ -429,6 +505,8 @@ class PlmDCA:
                 A tuple of tuples of site pairs and dca score
         """
         mapping_dict = seqbackmapper.map_to_reference_sequence()
+        # Add attribute __reseq_mapping_dict
+        self.__refseq_mapping_dict = mapping_dict 
         sorted_scores_mapped = list()
         num_mapped_pairs = 0
         for pair, score in sorted_dca_scores:
@@ -445,47 +523,6 @@ class PlmDCA:
         logger.info('\n\tTotal number of mapped sites: {}'.format(num_mapped_pairs))
         return tuple(sorted_scores_mapped)
 
-    
-    def compute_sorted_FN_APC_mapped(self, seqbackmapper):
-        """Filters mapped site pairs with a reference sequence. 
-
-        Parameters
-        -----------
-            self : PlmDCA
-                An instance of PlmDCA class
-            seqbackmapper : SequenceBackmapper 
-                An instance of SequenceBackmapper class
-        
-        Returns
-        -------
-            sorted_scores_FN_APC_mapped : tuple
-                A tuple of tuples of site pairs and dca score
-        """
-        sorted_scores_FN_APC = self.compute_sorted_FN_APC()
-        sorted_scores_FN_APC_mapped = self.get_mapped_dca_scores(sorted_scores_FN_APC, seqbackmapper)
-        
-        return tuple(sorted_scores_FN_APC_mapped)
-
-    
-    def compute_sorted_DI_APC_mapped(self, seqbackmapper):
-        """Filters mapped site pairs with a reference sequence. 
-
-        Parameters
-        -----------
-            self : PlmDCA
-                An instance of PlmDCA class
-            seqbackmapper : SequenceBackmapper 
-                An instance of SequenceBackmapper class
-        
-        Returns
-        -------
-            sorted_scores_DI_APC_mapped : tuple
-                A tuple of tuples of site pairs and dca score
-        """
-        sorted_scores_DI_APC = self.compute_sorted_DI_APC()
-        sorted_scores_DI_APC_mapped = self.get_mapped_dca_scores(sorted_scores_DI_APC, seqbackmapper)
-        return tuple(sorted_scores_DI_APC_mapped)
-    
     
     def compute_seqs_weight(self):
         """Computes sequences weight
@@ -560,7 +597,7 @@ class PlmDCA:
                 A 2d numpy array of shape (seqs_len, num_site_states) of single site
                 frequencies after they are regularized.
         """
-        #TODO  add attribute pseudocount  for DI computation
+        #TODO  add attribute pseudocount at the __init__ method for DI computation
         
         fi = self.get_single_site_freqs()
         logger.info('\n\tComputing regularized single-site frequencies')
@@ -573,7 +610,7 @@ class PlmDCA:
         return fi_reg 
 
     
-    def compute_two_site_model_fields(self, couplings = None):
+    def compute_two_site_model_fields(self, couplings):
         """Computes two-site model fields. These fields are used for the 
         computation of the direct information.
 
@@ -591,7 +628,7 @@ class PlmDCA:
                 of unique site pairs excluding self pairings.
                 P = seqs_len * (seqs_len - 1)/2.
         """
-        if couplings is None: couplings = self.get_couplings_no_gap_state()
+        
         reg_fi = self.get_reg_single_site_freqs()
 
         logger.info('\n\tComputing two-site model fields') 
@@ -604,7 +641,7 @@ class PlmDCA:
         return two_site_model_fields
 
 
-    def compute_direct_unsorted_DI(self):
+    def compute_direct_info_unsorted_DI(self):
         """Compute plmDCA direct information score
 
         Parameters
@@ -627,10 +664,12 @@ class PlmDCA:
                 (q, q), we use Pdir[:q-1, :q-1] when computing the direct information.
         """
 
-        
-        couplings = self.get_couplings_no_gap_state()
+        fields_and_couplings = self.get_fields_and_couplings_from_backend()
+        #add attribute to capture the fields and couplings obtained from backend
+        self.__fields_and_couplings_all = fields_and_couplings
+        couplings = self.get_couplings_no_gap_state(fields_and_couplings)
         reg_fi = self.get_reg_single_site_freqs()
-        two_site_model_fields = self.compute_two_site_model_fields(couplings = couplings)
+        two_site_model_fields = self.compute_two_site_model_fields(couplings)
         logger.info('\n\tComputing direct information')
         di_scores = msa_numerics.compute_direct_info(
             couplings = couplings, 
@@ -642,20 +681,22 @@ class PlmDCA:
         return di_scores 
         
     
-    def compute_sorted_DI(self):
+    def compute_sorted_DI(self, seqbackmapper=None):
         """Sorted the DI score
 
         Parameters
         ----------
             self : PlmDCA
                 An instance of PlmDCA class
+            seqbackmapepr : SequenceBackmapepr
+                An instance of SequenceBackmapper class
         
         Returns
         -------
             sorted_di : tuple of site pairs and DCA scores of the form
                 (((0, 1), score1), ((0,2), score2 ...)
         """
-        di_scores= self.compute_direct_unsorted_DI()
+        di_scores= self.compute_direct_info_unsorted_DI()
         di_scores_dict = dict()
         pair_counter = 0
         for i in range(self.__seqs_len - 1):
@@ -664,16 +705,20 @@ class PlmDCA:
                 di_scores_dict[site_pair] = di_scores[pair_counter]
                 pair_counter += 1
         sorted_di = sorted(di_scores_dict.items(), key =lambda k : k[1], reverse=True)
+        if seqbackmapper is not None:
+            sorted_di = self.get_mapped_site_pairs_dca_scores(sorted_di, seqbackmapper)
         return sorted_di
 
     
-    def compute_sorted_DI_APC(self):
+    def compute_sorted_DI_APC(self, seqbackmapper=None):
         """Performs average product correction of DI scores and sorts them in reverse order.
 
         Parameters
         ----------
             self : PlmDCA
                 An instance of PlmDCA class
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class
         
         Returns
         -------
@@ -701,6 +746,8 @@ class PlmDCA:
             sorted_DI_apc.append((pair, score_apc))
         # sort the scores as doing APC may have disrupted the ordering
         sorted_DI_apc = sorted(sorted_DI_apc, key = lambda k : k[1], reverse=True)
+        if seqbackmapper is not None:
+            sorted_DI_apc = self.get_mapped_site_pairs_dca_scores(sorted_DI_apc, seqbackmapper)
         return sorted_DI_apc 
         
 

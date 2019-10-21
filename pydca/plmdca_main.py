@@ -83,6 +83,11 @@ class CmdArgs:
     is created using the base name of the MSA file, with a prefix and/or postfix
     added to it.
     """
+    ranked_by_optional = '--ranked_by'
+    ranked_by_optional_help="""Method in which DCA scores are calculated. There are
+    four options: direct information (DI), Frobenius norm (FN) and their average
+    product corrected forms (DI_APC, FN_APC).
+    """
 # end of class CmdArgs 
 
 DCA_COMPUTATION_SUBCOMMANDS = ('compute_fn', 'compute_di', 'compute_params', 'debug')
@@ -122,7 +127,7 @@ def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=N
 def execute_from_command_line(biomolecule, msa_file, the_command = None, 
     refseq_file = None, seqid = None, lambda_h = None, lambda_J = None, 
     max_iterations = None,  apc = False ,verbose = False, output_dir = None,
-    num_threads = None):
+    num_threads = None, ranked_by='FN'):
     """Runs plmdca computation from the command line.
 
     Parameters
@@ -148,7 +153,9 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
         verbose : bool 
             True or False. Determines if plmdca computation is done in verbose mode or not.
         output_dir : str    
-            Directory where computed results are to be saved in. 
+            Directory where computed results are to be saved in.
+        ranked_by : str
+            DCA scores computation method. Default is by Frobenius Norm (FN). 
     """
 
     if verbose : configure_logging()
@@ -164,65 +171,68 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
         if not output_dir:
             msa_file_base_name, ext = os.path.splitext(os.path.basename(msa_file))
             output_dir = 'PLMDCA_output_' + msa_file_base_name
-            #create dca coutput directory
-            dca_utilities.create_directories(output_dir)
-            mapped_sites = None
+        #create dca coutput directory
+        dca_utilities.create_directories(output_dir)
+        seqbackmapper = None 
         if refseq_file:# do backmapping when reference sequence file is provided
             seqbackmapper = SequenceBackmapper(
                 msa_file = msa_file,
                 refseq_file = refseq_file,
                 biomolecule = plmdca_instance.biomolecule
             )
-            mapped_sites = seqbackmapper.map_to_reference_sequence()
         #subcommand compute_fn
         if the_command=='compute_fn':
             if apc:
                 score_type = 'PLMDCA Frobenius norm, average product corrected (APC)'
-                sorted_FN = plmdca_instance.compute_sorted_FN_APC()
+                sorted_FN = plmdca_instance.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'PLMDCA_apc_fn_scores_', postfix='.txt'
                 )
             else:
                 score_type = 'PLMDCA Frobenius norm, non-APC (not average product corrected)'
-                sorted_FN = plmdca_instance.compute_sorted_FN()
+                sorted_FN = plmdca_instance.compute_sorted_FN(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'PLMDCA_raw_fn_scores_', postfix='.txt'
                 )
             dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_FN,
-                site_mapping = mapped_sites, metadata = param_metadata,
+                metadata = param_metadata,
                 score_type = score_type
             )
         #subcommand compute_di 
         if the_command == 'compute_di':
             if apc:
                 score_type = 'PLMDCA  DI scores, average product corrected (APC)'
-                sorted_DI = plmdca_instance.compute_sorted_DI_APC()
+                sorted_DI = plmdca_instance.compute_sorted_DI_APC(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'PLMDCA_apc_di_scores_', postfix='.txt'
                 )
             else:
                 score_type = 'PLMDCA DI scores, non-APC (not average product corrected)'
-                sorted_DI = plmdca_instance.compute_sorted_DI()
+                sorted_DI = plmdca_instance.compute_sorted_DI(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'PLMDCA_raw_di_scores_', postfix='.txt'
                 )
             dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_DI,
-                site_mapping = mapped_sites, metadata = param_metadata,
+                metadata = param_metadata,
                 score_type = score_type
             )
+        
+        # compute params
+        if the_command == 'compute_params':
+            fields, couplings = plmdca_instance.compute_params(seqbackmapper=seqbackmapper, ranked_by=ranked_by)
             
         #subcommand debug
         if the_command=='debug':
             score_type = 'PLMDCA direct information scores non-APC'
-            di_scores =  plmdca_instance.compute_sorted_FN_APC_mapped(seqbackmapper) 
+            di_scores =  plmdca_instance.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
             fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                 msa_file, prefix = 'PLMDCA_raw_di_scores_', postfix='.txt'
-            )         
+            )        
             dca_utilities.write_sorted_dca_scores(fn_file_path, di_scores,
-                site_mapping = mapped_sites,
                 metadata = param_metadata,
                 score_type = score_type,
             )
+            
     return None 
 
 
@@ -271,6 +281,9 @@ def run_plm_dca():
     parser_compute_params.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
     parser_compute_params.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
     parser_compute_params.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_params.add_argument(CmdArgs.ranked_by_optional, help=CmdArgs.ranked_by_optional_help, 
+        choices= ('FN', 'FN_APC', 'DI', 'DI_APC', 'fn', 'fn_apc', 'di', 'di_apc')
+    )
     
     #parser debug
     parser_debug = subparsers.add_parser('debug', help='debug plmdca')

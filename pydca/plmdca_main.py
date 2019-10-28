@@ -88,6 +88,15 @@ class CmdArgs:
     four options: direct information (DI), Frobenius norm (FN) and their average
     product corrected forms (DI_APC, FN_APC).
     """
+
+    linear_dist_optional = '--linear_dist'
+    linear_dist_help="""Minimum separation beteween site pairs in sequence. 
+    """
+    num_site_pairs_optional = '--num_site_pairs'
+    num_site_pairs_help = """The maximum number of site pairs whose couplings are 
+    to be extracted.
+    """
+    
 # end of class CmdArgs 
 
 DCA_COMPUTATION_SUBCOMMANDS = ('compute_fn', 'compute_di', 'compute_params', 'debug')
@@ -127,7 +136,7 @@ def get_plmdca_inst(biomolecule, msa_file, seqid=None, lambda_h=None, lambda_J=N
 def execute_from_command_line(biomolecule, msa_file, the_command = None, 
     refseq_file = None, seqid = None, lambda_h = None, lambda_J = None, 
     max_iterations = None,  apc = False ,verbose = False, output_dir = None,
-    num_threads = None, ranked_by='FN'):
+    num_threads = None, ranked_by = None, linear_dist=None, num_site_pairs=None):
     """Runs plmdca computation from the command line.
 
     Parameters
@@ -219,19 +228,30 @@ def execute_from_command_line(biomolecule, msa_file, the_command = None,
         
         # compute params
         if the_command == 'compute_params':
-            fields, couplings = plmdca_instance.compute_params(seqbackmapper=seqbackmapper, ranked_by=ranked_by)
-            
-        #subcommand debug
-        if the_command=='debug':
-            score_type = 'PLMDCA direct information scores non-APC'
-            di_scores =  plmdca_instance.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
-            fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                msa_file, prefix = 'PLMDCA_raw_di_scores_', postfix='.txt'
-            )        
-            dca_utilities.write_sorted_dca_scores(fn_file_path, di_scores,
-                metadata = param_metadata,
-                score_type = score_type,
-            )
+            fields, couplings = plmdca_instance.compute_params(
+                seqbackmapper=seqbackmapper, 
+                ranked_by=ranked_by,
+                linear_dist=linear_dist,
+                num_site_pairs=num_site_pairs,
+                )
+            # write fields to text file
+            fields_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'fields_', postfix='.txt'
+                )
+            param_metadata.append('#\tTotal number of sites whose fields are extracted: {}'.format(len(fields))) 
+            dca_utilities.write_fields_csv(fields_file_path, fields, metadata=param_metadata)
+            couplings_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'couplings_', postfix='.txt'
+                )
+            param_metadata.pop() 
+            param_metadata.append('#\tTotal number of site pairs whose couplings are extracted: {}'.format(len(couplings)))
+            if ranked_by is None: # the default is FN_APC
+                ranked_by = 'FN_APC'
+            param_metadata.append('#\tDCA ranking method used: {}'.format(ranked_by))
+            if linear_dist is None: # default is |i - j| > 4
+                linear_dist = 4
+            param_metadata.append('#\tMinimum separation beteween site pairs in sequence: |i - j| > {}'.format(linear_dist))
+            dca_utilities.write_couplings_csv(couplings_file_path, couplings, metadata=param_metadata)
             
     return None 
 
@@ -242,7 +262,16 @@ def run_plm_dca():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest = CmdArgs.subcommand_name)
     #parser compute_fn
-    parser_compute_fn = subparsers.add_parser('compute_fn', help='computes the Frobenius norm of couplings.')
+    parser_compute_fn = subparsers.add_parser('compute_fn', 
+        help='Computes DCA scores summarized by the Frobenius norm of couplings.'
+        'Typically usage is plmdca compute_fn <biomolecule> <msa_file> --max_iterations <ni> ' 
+        '--num_threads <nt> --apc --verbose, where <biomolecule> takes rna or protein ' 
+        '(case insensitive), <msa_file> is fasta formatted multiple sequence alignment '
+        'file, <ni> is the number of maximum gradient decent iterations, <nt> is the number '
+        'of threads (if OpenMP) is supported, --apc performs average product correction of '
+        'DCA scores and --verbose triggers logging messages to be displayed on the screen. '
+        'Help message can be obtained using: plmdca compute_fn --help'
+    )
     parser_compute_fn.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
     parser_compute_fn.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
     parser_compute_fn.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
@@ -256,7 +285,11 @@ def run_plm_dca():
     parser_compute_fn.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
 
     #parser compute_DI_FN
-    parser_compute_di = subparsers.add_parser('compute_di', help='computes the direct information')
+    parser_compute_di = subparsers.add_parser('compute_di', 
+        help='Computes DCA scores summarized by direct information. '
+        'Typical usage is similar to the command compute_fn. '
+        'Help message can be obtained using: plmdca compute_di --help'
+    )
     parser_compute_di.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
     parser_compute_di.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
     parser_compute_di.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
@@ -270,7 +303,14 @@ def run_plm_dca():
     parser_compute_di.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
     
     #parser compute_params
-    parser_compute_params = subparsers.add_parser('compute_params', help='computes fields and couplings')
+    parser_compute_params = subparsers.add_parser('compute_params', 
+        help='Computes the fields and couplings of the conditional probability model for '
+        'pseudolikelihood maximimization direct coupling anlysis (plmDA). Typical usage is '
+        'plmdca compute_params <biomolecule> <msa_file> --max_iterations <ni> --num_threads ' 
+        '<nt> --ranked_by fn_apc --verbose. This command computes fields and couplings, with '
+        'the couplings ranked by Frobenius norm average product corrected DCA score. '
+        'Help message can be obtained using: plmdca compute_params --help'
+    )
     parser_compute_params.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
     parser_compute_params.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
     parser_compute_params.add_argument(CmdArgs.seqid_optional, help=CmdArgs.seqid_optional_help, type=float)
@@ -284,16 +324,8 @@ def run_plm_dca():
     parser_compute_params.add_argument(CmdArgs.ranked_by_optional, help=CmdArgs.ranked_by_optional_help, 
         choices= ('FN', 'FN_APC', 'DI', 'DI_APC', 'fn', 'fn_apc', 'di', 'di_apc')
     )
-    
-    #parser debug
-    parser_debug = subparsers.add_parser('debug', help='debug plmdca')
-    parser_debug.add_argument(CmdArgs.biomolecule, help=CmdArgs.biomolecule_help)
-    parser_debug.add_argument(CmdArgs.msa_file, help=CmdArgs.msa_file_help)
-    parser_debug.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_optional_help, action='store_true')
-    parser_debug.add_argument(CmdArgs.num_threads_optional, type = int, help = CmdArgs.num_threads_optional)
-    parser_debug.add_argument(CmdArgs.max_iterations_optional, type = int, help = CmdArgs.max_iterations_optional)
-    parser_debug.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
-    parser_debug.add_argument(CmdArgs.refseq_file_optional, help=CmdArgs.refseq_file_help)
+    parser_compute_params.add_argument(CmdArgs.linear_dist_optional, help=CmdArgs.linear_dist_help, type=int)
+    parser_compute_params.add_argument(CmdArgs.num_site_pairs_optional, help=CmdArgs.num_site_pairs_help, type=int)
 
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
     args_dict = vars(args)
@@ -309,6 +341,9 @@ def run_plm_dca():
         apc = args_dict.get('apc'),
         output_dir = args_dict.get('output_dir'),
         verbose = args_dict.get('verbose'),
+        ranked_by = args_dict.get('ranked_by'), 
+        linear_dist = args_dict.get('linear_dist'),
+        num_site_pairs = args_dict.get('num_site_pairs')
     )
     return None 
 

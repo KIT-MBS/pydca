@@ -12,7 +12,7 @@ class InputFilesPath:
         protein_ref_file:
 
     """
-    rna_msa_file = os.path.abspath("tests/tests_input/RF00059_MSAtrimmed.faa")
+    rna_msa_file = os.path.abspath("tests/tests_input/MSA_RF00059_trimmed_gap_treshold_50.fa")
     rna_ref_file = os.path.abspath("tests/tests_input/ref_seq_RF00059.faa")
     protein_msa_file = os.path.abspath("tests/tests_input/PF02826.faa")
     protein_ref_file = os.path.abspath("tests/tests_input/ref_seq_PF02826.faa")

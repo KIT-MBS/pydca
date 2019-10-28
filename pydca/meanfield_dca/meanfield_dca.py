@@ -534,6 +534,8 @@ class MeanFieldDCA:
                 ' You might need to increase it.'.format(e, self.__pseudocount)
             )
             raise
+        # capture couplings to avoid recomputing
+        self.__couplings = couplings 
         logger.info('\n\tMaximum and minimum couplings: {}, {}'.format(
             np.max(couplings), np.min(couplings)))
         return couplings
@@ -584,7 +586,9 @@ class MeanFieldDCA:
 
         Returns
         -------
-            fields :
+            fields : dict 
+                A dictionary of fields whose keys are sites in MSA and whose values
+                are arrays of fields per site.
         """
 
         if couplings is None:
@@ -615,31 +619,125 @@ class MeanFieldDCA:
             fields_i = np.log(pi[:-1]/piq) - np.reshape(sum, (q-1, ))
             fields[i] = fields_i
         return fields
+    
+    
+    def shift_couplings(self, couplings_ij):
+        """Shifts the couplings value.
 
+        Parameters
+        ----------
+            self : MeanFieldDCA 
+                An instance of MeanFieldDCA class
+            couplings_ij : np.array
+                1d array of couplings for site pair (i, j)
+        Returns
+        -------
+            shifted_couplings_ij : np.array
+                A 2d array of the couplings for site pair (i, j)
+        """
+        qm1 = self.__num_site_states - 1
+        couplings_ij = np.reshape(couplings_ij, (qm1,qm1))
+        avx = np.mean(couplings_ij, axis=1)
+        avx = np.reshape(avx, (qm1, 1))
+        avy = np.mean(couplings_ij, axis=0)
+        avy = np.reshape(avy, (1, qm1))
+        av = np.mean(couplings_ij)
+        couplings_ij = couplings_ij -  avx - avy + av
+        return couplings_ij 
 
-    def compute_hamiltonian(self):
-        """Computes the couplings and fields
+    
+    def compute_params(self, seqbackmapper=None, ranked_by=None, linear_dist=None, num_site_pairs=None):
+        """Computes fields and couplings with the couplings ranked by DCA score.
 
         Parameters
         ----------
             self : MeanFieldDCA
-                An instance of MeanFieldDCA class
-
+                An instanc of MeanFieldDCA class
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class
+            ranked_by : str
+                DCA score type usef to rank the couplings by their site pairs.
+                By default they are ranked by the Frobenius Norm of couplings with
+                average product correction.
+            linear_dist : int
+                Minimum separation beteween site pairs (i, j).
+            num_site_pairs : int 
+                Number of site pairs whose couplings are to be otained. 
+        
         Returns
         -------
-            couplings : np.array
-                A 2d numpy array of the couplings
-            fields : dict
-                A dictionary of fields whose keys are sites and values are a numpy
-                array of fields.
+            fields, couplings : tuple 
+                A tuple of lists of fields and couplings. 
         """
-        reg_fi = self.get_reg_single_site_freqs()
-        reg_fij = self.get_reg_pair_site_freqs()
-        corr_mat = self.construct_corr_mat(reg_fi, reg_fij)
-        logger.info('\n\tComputing the Hamiltonian')
-        couplings = self.compute_couplings(corr_mat)
-        fields = self.compute_fields(couplings=couplings)
-        return fields, couplings
+        if ranked_by is None: ranked_by = 'fn_apc'
+        if linear_dist is None: linear_dist = 4
+
+        RANKING_METHODS = ('FN', 'FN_APC', 'DI', 'DI_APC')
+        ranked_by = ranked_by.strip().upper()
+        if ranked_by not in RANKING_METHODS:
+            logger.error('\n\tInvalid ranking criterion {}.\nChoose from {}'.format(ranked_by, RANKING_METHODS))
+            raise MeanFieldDCAException
+        if ranked_by == 'FN': dca_scores = self.compute_sorted_FN(seqbackmapper=seqbackmapper)
+        if ranked_by == 'FN_APC': dca_scores = self.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
+        if ranked_by == 'DI': dca_scores = self.compute_sorted_DI(seqbackmapper=seqbackmapper)
+        if ranked_by == 'DI_APC': dca_scores = self.compute_sorted_DI_APC(seqbackmapper=seqbackmapper)
+
+        fields = self.compute_fields(couplings=self.__couplings)
+
+        qm1 = self.__num_site_states - 1 
+
+        if seqbackmapper is not None:
+            # mapping_dict has keys from MSA sites and values from refseq sites
+            # we need to reverse this mapping as the fields and couplings are from MSA sites
+            mapping_dict = {
+                value : key for key, value in self.__refseq_mapping_dict.items()
+            }
+        else:
+            mapping_dict = {
+                i : i for i in range(self.__sequences_len)
+            }
+        # set default number of site pairs whose couplings are to be extracted
+        if num_site_pairs is None :
+            num_site_pairs = len(seqbackmapper.ref_sequence) if seqbackmapper is not None else len(mapping_dict.keys()) 
+        # we need only the fields corresponding to mapped sites 
+        fields_mapped = list()
+        logger.info('\n\tExtracting fields')
+        for i in mapping_dict.keys():
+            site_in_msa = mapping_dict[i]
+            fields_im = fields[site_in_msa]
+            site_fields = i, fields_im
+            fields_mapped.append(site_fields)
+        # extract couplings
+        logger.info('\n\tExtracting couplings for top {} site pairs (i, j) with |i - j| > {} and ranked by {}'.format(
+            num_site_pairs, linear_dist, ranked_by)
+        )
+        couplings_ranked_by_dca_score = list()
+        count_pairs = 0
+        for pair, score in dca_scores:
+            site_1_in_refseq, site_2_in_refseq = pair[0], pair[1]
+            if abs(site_1_in_refseq - site_2_in_refseq) > linear_dist:
+                count_pairs += 1
+                if count_pairs > num_site_pairs: break 
+                i, j = mapping_dict[site_1_in_refseq], mapping_dict[site_2_in_refseq]
+                if(i > j): 
+                    logger.error('\n\tInvalid site pair. Site pair (i, j) should be ordered in i < j')
+                    raise MeanFieldDCAException
+                row_start = i * qm1 
+                row_end = row_start + qm1 
+                column_start = j * qm1 
+                column_end = column_start + qm1 
+                couplings_ij = self.__couplings[row_start:row_end, column_start:column_end]
+                couplings_ij = self.shift_couplings(couplings_ij) # now couplings_ij is a 2d numpy array
+                couplings_ij = np.reshape(couplings_ij, (qm1*qm1,))
+                pair_couplings_ij = pair, couplings_ij   
+                couplings_ranked_by_dca_score.append(pair_couplings_ij)
+        if count_pairs < num_site_pairs:
+            logger.warning('\n\tObtained couplings for only {} ranked site pairs.' 
+                '\n\tThis is the maximum number of site paris we can obtain under ' 
+                'the given criteria'.format(count_pairs)
+            )
+                
+        return tuple(fields_mapped), tuple(couplings_ranked_by_dca_score) 
 
 
     def  get_mapped_site_pairs_dca_scores(self, sorted_dca_scores, seqbackmapper):
@@ -647,8 +745,8 @@ class MeanFieldDCA:
 
         Parameters
         -----------
-            self : PlmDCA
-                An instance of PlmDCA class
+            self : MeanFieldDCA
+                An instance of MeanFieldDCA class
             sorted_dca_scores : tuple of tuples
                 A tuple of tuples of site-pair and DCA score sorted by DCA scores 
                 in reverse order.
@@ -800,7 +898,7 @@ class MeanFieldDCA:
 
         Returns
         -------
-            frobenius_norm_sorted   : list
+            fn_sorted   : list
                 A list of tuples containing site pairs and DCA score, i.e., the
                 list [((i, j), score), ...] for all unique
                 site pairs (i, j) such that j > i.
@@ -827,13 +925,10 @@ class MeanFieldDCA:
                 cij_new = cij - cij_mean_1 - cij_mean_2 + cij_mean
                 fn_ij = np.sqrt(np.sum(cij_new * cij_new))
                 frobenius_norm.append((site_pair, fn_ij))
-        frobenius_norm_sorted = sorted(frobenius_norm, key = lambda x : x[1], reverse=True)
+        fn_sorted = sorted(frobenius_norm, key = lambda x : x[1], reverse=True)
         if seqbackmapper is not None:
-            frobenius_norm_sorted = self.get_mapped_site_pairs_dca_scores(
-                frobenius_norm_sorted, 
-                seqbackmapper
-            )
-        return frobenius_norm_sorted
+            fn_sorted = self.get_mapped_site_pairs_dca_scores(fn_sorted, seqbackmapper)
+        return fn_sorted
 
 
     def compute_sorted_FN_APC(self, seqbackmapper = None):
@@ -877,10 +972,7 @@ class MeanFieldDCA:
         sorted_FN_APC = sorted(sorted_FN_APC, key=lambda x : x[1], reverse=True)
         # Must do backmapping is sebackmapper is not None
         if seqbackmapper is not None:
-            sorted_FN_APC = self.get_mapped_site_pairs_dca_scores(
-                sorted_FN_APC, 
-                seqbackmapper
-            ) 
+            sorted_FN_APC = self.get_mapped_site_pairs_dca_scores(sorted_FN_APC, seqbackmapper) 
         return sorted_FN_APC
 
 

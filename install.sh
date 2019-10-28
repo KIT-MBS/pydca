@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 #----------------------------------------
 # Installs the current version of pydca from PyPI 

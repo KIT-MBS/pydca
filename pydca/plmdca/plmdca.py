@@ -44,11 +44,11 @@ class PlmDCA:
         raise 
 
 
-    def __init__(self, msa_file, biomolecule, seqid=None, lambda_h=None, 
-            lambda_J=None, max_iterations=None, num_threads=None, verbose=False):
+    def __init__(self, msa_file, biomolecule, seqid = None, lambda_h=None, 
+            lambda_J = None, max_iterations = None, num_threads = None, 
+            verbose = False):
         """Initilizes plmdca instances
         """
-
         self.__biomolecule = biomolecule.strip().upper()
         if self.__biomolecule not in ('PROTEIN', 'RNA'):
             logger.error('\n\tInvalid biomolecule type {}'.format(self.__biomolecule))
@@ -317,7 +317,7 @@ class PlmDCA:
         
         return fields_no_gap_state, couplings_no_gap_state
 
-    def shitf_couplings(self, couplings_ij):
+    def shift_couplings(self, couplings_ij):
         """Shifts the couplings value.
 
         Parameters
@@ -341,9 +341,33 @@ class PlmDCA:
         couplings_ij = couplings_ij -  avx - avy + av
         return couplings_ij 
 
-    def compute_params(self, seqbackmapper=None, ranked_by='FN'):
-        """Computes fields and couplings.
+
+    def compute_params(self, seqbackmapper=None, ranked_by = None, linear_dist = None, num_site_pairs =None):
+        """Computes fields and couplings with the couplings ranked by DCA score.
+
+        Parameters
+        ----------
+            self : PlmDCA
+                An instanc of PlmDCA class
+            seqbackmapper : SequenceBackmapper
+                An instance of SequenceBackmapper class
+            ranked_by : str
+                DCA score type usef to rank the couplings by their site pairs.
+                By default they are ranked by the Frobenius Norm of couplings with
+                average product correction.
+            linear_dist : int
+                Minimum separation beteween site pairs (i, j).
+            num_site_pairs : int 
+                Number of site pairs whose couplings are to be otained. 
+        
+        Returns
+        -------
+            fields, couplings : tuple 
+                A tuple of lists of fields and couplings. 
         """
+        if ranked_by is None: ranked_by = 'fn_apc'
+        if linear_dist is None: linear_dist = 4
+
         RANKING_METHODS = ('FN', 'FN_APC', 'DI', 'DI_APC')
         ranked_by = ranked_by.strip().upper()
         if ranked_by not in RANKING_METHODS:
@@ -356,44 +380,58 @@ class PlmDCA:
 
         fields = self.get_fields_no_gap_state(self.__fields_and_couplings_all)
         couplings = self.get_couplings_no_gap_state(self.__fields_and_couplings_all)
-        logger.info('\n\tObtaining fields and couplings for ranked site pairs')
         
         qm1 = self.__num_site_states - 1 
         L = self.__seqs_len
         if seqbackmapper is not None:
-            mapping_dict = self.__refseq_mapping_dict 
             # mapping_dict has keys from MSA sites and values from refseq sites
             # we need to reverse this mapping as the fields and couplings are from MSA sites
             mapping_dict = {
-                value:key for key, value in mapping_dict.items()
-                }
+                value : key for key, value in self.__refseq_mapping_dict.items()
+            }
         else:
             mapping_dict = {
                 i : i for i in range(self.__seqs_len)
             }
+        # set default number of site pairs whose couplings are to be extracted
+        if num_site_pairs is None :
+            num_site_pairs = len(seqbackmapper.ref_sequence) if seqbackmapper is not None else len(mapping_dict.keys()) 
         # we need only the fields corresponding to mapped sites 
         fields_mapped = list()
+        logger.info('\n\tExtracting fields')
         for i in mapping_dict.keys():
-            im = mapping_dict[i]
-            fields_im = fields[ qm1 * i : qm1 * i + qm1]
+            site_in_msa = mapping_dict[i]
+            fields_im = fields[qm1 * site_in_msa : qm1 * site_in_msa + qm1]
             site_fields = i, fields_im
             fields_mapped.append(site_fields)
-    
-        pair_couplings_ranked = list()
-        
+        # extract couplings
+        logger.info('\n\tExtracting couplings for top {} site pairs (i, j) with |i - j| > {} and ranked by {}'.format(
+            num_site_pairs, linear_dist, ranked_by)
+        )
+        couplings_ranked_by_dca_score = list()
+        count_pairs = 0
         for pair, score in dca_scores:
-            i, j = mapping_dict[pair[0]], mapping_dict[pair[1]]
-            if(i > j): 
-                logger.error('\n\tInvalid site pair. Site pair (i, j) should be ordered in i < j')
-                raise PlmDCAException
-            start_indx = int(((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * qm1 * qm1)
-            end_indx = start_indx + qm1 * qm1
-            couplings_ij = couplings[start_indx:end_indx]
-            #couplings_ij = self.shitf_couplings(couplings_ij)
-            couplings_ij = np.reshape(couplings_ij, (qm1, qm1))
-            ranked_pair_couplings_ij = pair, couplings_ij   
-            pair_couplings_ranked.append(ranked_pair_couplings_ij)
-        return tuple(fields_mapped), tuple(pair_couplings_ranked) 
+            site_1_in_refseq, site_2_in_refseq = pair[0], pair[1]
+            if abs(site_1_in_refseq - site_2_in_refseq) > linear_dist:
+                count_pairs += 1
+                if count_pairs > num_site_pairs: break 
+                i, j = mapping_dict[site_1_in_refseq], mapping_dict[site_2_in_refseq]
+                if(i > j): 
+                    logger.error('\n\tInvalid site pair. Site pair (i, j) should be ordered in i < j')
+                    raise PlmDCAException
+                start_indx = int(((L *  (L - 1)/2) - (L - i) * ((L-i)-1)/2  + j  - i - 1) * qm1 * qm1)
+                end_indx = start_indx + qm1 * qm1
+                couplings_ij = couplings[start_indx:end_indx]
+                couplings_ij = self.shift_couplings(couplings_ij)
+                couplings_ij = np.reshape(couplings_ij, (qm1*qm1,))
+                pair_couplings_ij = pair, couplings_ij   
+                couplings_ranked_by_dca_score.append(pair_couplings_ij)
+        if count_pairs < num_site_pairs:
+            logger.warning('\n\tObtained couplings for only {} ranked site pairs.' 
+                '\n\tThis is the maximum number of site paris we can obtain under ' 
+                'the given criteria'.format(count_pairs)
+            )
+        return tuple(fields_mapped), tuple(couplings_ranked_by_dca_score) 
 
 
     def compute_sorted_FN(self, seqbackmapper=None):
@@ -537,7 +575,7 @@ class PlmDCA:
             seqs_weight : np.array
                 A 1d numpy array containing sequences weight.
         """
-        logger.info('\n\tComputing sequences weight using pseudo count {}'.format(self.__seqid))
+        logger.info('\n\tComputing sequences weight with sequence identity {}'.format(self.__seqid))
         alignment_data = np.array(
             get_alignment_int_form(self.__msa_file, 
             biomolecule = self.__biomolecule)
@@ -597,7 +635,8 @@ class PlmDCA:
                 A 2d numpy array of shape (seqs_len, num_site_states) of single site
                 frequencies after they are regularized.
         """
-        #TODO  add attribute pseudocount at the __init__ method for DI computation
+        # TODO  add attribute pseudocount at the __init__ method for DI computation.
+        # Currently DI scores for plmDCA are computed using pseudocount = 0.5 
         
         fi = self.get_single_site_freqs()
         logger.info('\n\tComputing regularized single-site frequencies')

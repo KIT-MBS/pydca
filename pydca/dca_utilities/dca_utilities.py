@@ -153,18 +153,18 @@ def plmdca_param_metadata(plmdca_instance):
     """
     metadata = [
         '# PARAMETERS USED FOR THIS COMPUTATION: ',
-        '#      Sequence type: {}'.format(plmdca_instance.biomolecule),
-        '#      Total number of sequences in alignment data: {}'.format(
+        '#\tSequence type: {}'.format(plmdca_instance.biomolecule),
+        '#\tTotal number of sequences in alignment data: {}'.format(
             plmdca_instance.num_sequences),
-        '#      Length of sequences in alignment data: {}'.format(
+        '#\tLength of sequences in alignment data: {}'.format(
             plmdca_instance.sequences_len),
         #'#      Effective number of sequences: {}'.format(
         #    plmdca_instance.effective_num_sequences),
-        '#      Value of sequence identity: {}'.format(
+        '#\tValue of sequence identity: {}'.format(
             plmdca_instance.sequence_identity),
-        '#      lambda_h: {}'.format(plmdca_instance.lambda_h),
-        '#      lambda_J: {}'.format(plmdca_instance.lambda_J),
-        '#      Number of gradient decent iterations: {}'.format(plmdca_instance.max_iterations),
+        '#\tlambda_h: {}'.format(plmdca_instance.lambda_h),
+        '#\tlambda_J: {}'.format(plmdca_instance.lambda_J),
+        '#\tNumber of gradient decent iterations: {}'.format(plmdca_instance.max_iterations),
     ]
     return metadata
 
@@ -290,21 +290,15 @@ def get_couplings_for_pair(couplings = None, pair = None, num_site_states = None
     return couplings_ij
 
 
-def write_couplings(file_name, couplings, num_site_states = None,
-        ranked_site_pairs = None, metadata = None, seqs_len=None):
+def write_couplings_csv(file_name, couplings, metadata = None):
     """Writes the couplings to file.
 
     Parameters
     -----------
         file_name : str
             Path to the output file to which the couplings are to be saved.
-        couplings : np.array(dtype=np.float64)
-            A 2d nupy array containing the couplings.
-        ranked_site_pairs : list
-            A list of tuples, the tuples representing ranked site pairs by DCA
-            score. This argument is used to write the couplings in sorted oreder
-            of the DCA score of the pairs, but the couplings themselves are not
-            sorted within a site pair.
+        couplings : list 
+            A list of tuples of site pairs and  the corresponding couplings vector.
         metadata : str
             Data for file header.
 
@@ -314,81 +308,54 @@ def write_couplings(file_name, couplings, num_site_states = None,
     """
 
     logger.info('\n\tSaving couplings to file:\n\t{}'.format(file_name))
-    q = num_site_states
+
     with open(file_name, 'w') as fh:
         #write header meta data
         fh.write('#'+ '='*70 + '\n')
         if metadata:
             for data in metadata:
                 fh.write('{}\n'.format(data))
-            fh.write('# In the data below, First and Second integers refer to \n'
-                '# sites and the Third and Fourth integers refer to residue.\n'
-                '# The last values are the couplings\n'
-                '# Residues are mapped as shown above\n')
             fh.write('#' + '='*70 + '\n')
-        #write the couplings
-        if ranked_site_pairs is not None:
-            for pair in ranked_site_pairs:
-                couplings_ij = get_couplings_for_pair(couplings = couplings,
-                    pair = pair, num_site_states = num_site_states,
-                )
-                for a in range(num_site_states - 1):
-                    for b in range(num_site_states - 1):
-                        couplings_ij_ab = couplings_ij[a,b]
-                        fh.write('{},{},{},{},{}\n'.format(
-                            pair[0] + 1, pair[1] + 1, a + 1, b + 1, couplings_ij_ab)
-                        )
-        else: # write couplings in order of sites (no ranking by DCA score)
-            for i in range(seqs_len - 1):
-                for j in range(i + 1, seqs_len):
-                    pair = (i, j)
-                    couplings_ij = get_couplings_for_pair(couplings=couplings,
-                        pair = pair, num_site_states= num_site_states,
-                    )
-                    for a in range(num_site_states - 1):
-                        for b in range(num_site_states - 1):
-                            couplings_ij_ab = couplings_ij[a,b]
-                            fh.write('{},{},{},{},{}\n'.format(
-                                pair[0] + 1, pair[1] + 1, a + 1, b + 1, couplings_ij_ab)
-                            )
+        
+        for i in range(len(couplings)):
+            site_pair, couplings_ij = couplings[i]
+            fh.write('{},{}'.format(site_pair[0] + 1, site_pair[1] + 1 ))
+            for c in couplings_ij:
+                fh.write(',{}'.format(c))
+            fh.write('\n') 
+        
     return None
 
 
-def write_fields(file_name, fields, num_site_states=None, metadata=None):
+def write_fields_csv(file_name, fields, metadata=None):
     """Writes local fields to file.
 
     Parameters
     ----------
         file_name : str
             Path to output file name to write local fields.
-        fields : dict
-            A dictionary whose keys are sites and values are a 1d numpy array of
-            fields corresponding to states of that particular site.
-        num_site_states : int
-            Total number of states at sites. It takes either five or 21 for RNAs
-            and proteins, respectively.
-        site_mapping: dict
-            A dictionary that provides mapping between the sites of the MSA data
-            and that of a reference sequence.
+        fields : list 
+            A list of tuples of sequence site and the the corresponding fields vector.
         metadata : list
             A list containing metadata to be written to the header of fields
             output file.
     """
-    logger.info('\n\tWriting fields to file {}'.format(file_name))
-    num_sites = len(fields.keys())
+    logger.info('\n\tSaving fields to file:\n\t{}'.format(file_name))
+    num_sites = len(fields)
     with open(file_name, 'w') as fh:
         fh.write('#{}\n'.format(70*'='))
         if metadata is not None:
             for data in metadata:
                 fh.write('{}\n'.format(data))
-            fh.write('# In the data below, the first integers referes to sites,\n'
-                '# the Second integer to residue type and the last data\n'
-                '# is local field. Residues are mapped as shown above\n'
-                '#{}\n'.format(70*'=')
+            fh.write('#{}\n'.format(70*'=')
             )
             for i in range(num_sites):
-                for a in range(num_site_states-1):
-                    fh.write('{},{},{}\n'.format(i + 1, a + 1, fields[i][a]))
+                site, site_fields = fields[i]
+                fh.write('{}'.format(site + 1))
+                for fia in site_fields:
+                    fh.write(',{}'.format(fia))
+                fh.write('\n')
+                
     return None
 
 
@@ -466,46 +433,6 @@ def write_pair_site_freqs(file_name, fij, seqs_len = None,
                             i + 1, j + 1, a + 1, b + 1, fij[pair_counter, a, b]))
                 pair_counter += 1
 
-    return None
-
-
-def write_params_csv(fields_file_path=None, couplings_file_path=None, fields=None,
-        couplings=None, num_site_states=None, metadata=None):
-    """Writes the couplings and fields to their corresponding output files.
-
-    Parameters
-    ----------
-        fields_file_path : str
-            File to write fields (of the global probability model)
-        couplings_file_path : str
-            File to write couplings
-        fields : np.array
-            Numpy 2d array containing the fields.
-        coupling : np.array
-            Numpy 2d array of the couplings.
-        num_site_states : int
-            The total number of site states. 5 and 21 for RNAs and proteins,
-            respectively.
-        metadata : list
-            A list of metadata to be written to output files.
-
-    Returns
-    -------
-        None : None
-    """
-    # write fields
-    write_fields(
-        fields_file_path, fields,
-        num_site_states=num_site_states,
-        metadata = metadata,
-    )
-    #write couplings
-    seqs_len = len(fields.keys())
-    write_couplings(
-        couplings_file_path, couplings,
-        num_site_states=num_site_states,
-        metadata = metadata, seqs_len=seqs_len
-    )
     return None
 
 

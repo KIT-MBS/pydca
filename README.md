@@ -3,7 +3,7 @@
 
 # Prerequisites
 `pydca` is implemented mainly in Python with the pseudolikelihood maximization parameter inference part implemented using C++ backend for optimization. To install pydca and successfully carry out DCA computations, the following are required. 
-* Python 3, version 3.5 or latter.
+* Python 3, version 3.5 or later.
 * C++ compiler that supports C++11 (we recommend GCC).
 * Optionally, OpenMP for multithreading support.
 

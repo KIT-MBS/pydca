@@ -72,3 +72,12 @@ $ pydca --help
 ```bash
 $ plmdca compute_fn  --help
 ```
+
+### References 
+1. Morcos, F., Pagnani, A., Lunt, B., Bertolino, A., Marks, DS., Sander, C., Zecchina, R., Onuchic, JN., Hwa, T., and Weigt, M. <br>
+Direct-coupling analysis of residue coevolution captures native contacts across many protein families <br>
+PNAS December 6, 2011 108 (49) E1293-E1301. doi:10.1073/pnas.1111471108
+
+2. Ekeberg, M., Lövkvist, C., Lan, Y., Weigt, M., & Aurell, E. (2013). <br>
+Improved contact prediction in proteins: Using pseudolikelihoods to infer Potts models. <br>
+Physical Review E, 87(1), 012707. doi:10.1103/PhysRevE.87.012707

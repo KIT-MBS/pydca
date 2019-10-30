@@ -1641,6 +1641,21 @@ class DCAVisualizer:
         false_positives = contact_categories_dict['fp']
         missing_dca_contacts  = contact_categories_dict['missing']
         mapped_pdb_contacts = contact_categories_dict['pdb']
+        # Raise exception if the requested number of DCA predicted site-pairs is
+        # greater than that of the number of contacts in PDB 
+        filtered_pdb_contacts_list = [ 
+           site_pair for site_pair, metadata in mapped_pdb_contacts.items() if abs(site_pair[1] - site_pair[0]) > self.__linear_dist  
+        ]
+        num_filtered_pdb_contacts = len(filtered_pdb_contacts_list)
+        if  self.__num_dca_contacts > num_filtered_pdb_contacts:
+            logger.error('\n\tMaximum number of PDB contacts with linear distance {} is {}.' 
+                '\n\tPlease set the number of DCA contacts a maximum of this value'.format(
+                    self.__linear_dist, 
+                    num_filtered_pdb_contacts
+                ) 
+            )
+            raise DCAVisualizerException
+
         x_false_positive, y_false_positive = self.split_and_shift_contact_pairs(
             false_positives
         )
@@ -1770,6 +1785,20 @@ class DCAVisualizer:
         false_positives = contact_categories_dict['fp']
         missing_pairs = contact_categories_dict['missing']
         pdb_contacts =  contact_categories_dict['pdb']
+
+        filtered_pdb_contacts_list = [ 
+           site_pair for site_pair, metadata in pdb_contacts.items() if abs(site_pair[1] - site_pair[0]) > self.__linear_dist  
+        ]
+        num_filtered_pdb_contacts = len(filtered_pdb_contacts_list)
+        if  self.__num_dca_contacts > num_filtered_pdb_contacts:
+            logger.error('\n\tMaximum number of PDB contacts with linear distance {} is {}.' 
+                '\n\tPlease set the number of DCA contacts a maximum of this value'.format(
+                    self.__linear_dist, 
+                    num_filtered_pdb_contacts
+                ) 
+            )
+            raise DCAVisualizerException
+
         fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(5,5))
         if missing_pairs:
             x_missing, y_missing = self.split_and_shift_contact_pairs(missing_pairs)

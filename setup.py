@@ -9,7 +9,7 @@ requirements = [
     "biopython==1.72",
     "numpy>=1.13.3, <=1.15.4",
     "numba==0.46.0",
-    "matplotlib==3.1.1",
+    "matplotlib==3.0.0",
     "requests>=2.22.0",
 ]
 

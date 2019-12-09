@@ -29,12 +29,12 @@ class MeanFieldDCATestCase(unittest.TestCase):
         """
         """
         #self.__mfdca_instance_protein.compute_sorted_DI()
-        sorted_DI, couplings = self.__mfdca_instance_rna.compute_sorted_DI()
+        sorted_DI = self.__mfdca_instance_rna.compute_sorted_DI()
 
     def test_compute_sorted_DI_protein(self):
         """
         """
-        sorted_DI, couplings = self.__mfdca_instance_protein.compute_sorted_DI()
+        sorted_DI = self.__mfdca_instance_protein.compute_sorted_DI()
 
 if __name__ == '__main__':
     unittes.main()

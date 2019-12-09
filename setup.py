@@ -9,7 +9,7 @@ requirements = [
     "biopython==1.72",
     "numpy>=1.13.3, <=1.15.4",
     "numba==0.46.0",
-    "matplotlib==3.1.1",
+    "matplotlib==3.0.0",
     "requests>=2.22.0",
 ]
 
@@ -35,7 +35,7 @@ plmdca_ext = Extension(
 
 setup(
     name="pydca",
-    version="1.0",
+    version="1.20",
     author="Mehari B. Zerihun",
     author_email="mbzerihun@gmail.com",
     python_requires=">=3.5",

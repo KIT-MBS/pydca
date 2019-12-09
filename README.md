@@ -3,7 +3,7 @@
 
 # Prerequisites
 `pydca` is implemented mainly in Python with the pseudolikelihood maximization parameter inference part implemented using C++ backend for optimization. To install pydca and successfully carry out DCA computations, the following are required. 
-* Python 3, version 3.5 or latter.
+* Python 3, version 3.5 or later.
 * C++ compiler that supports C++11 (we recommend GCC).
 * Optionally, OpenMP for multithreading support.
 
@@ -12,6 +12,10 @@
 To install the current version of `pydca` from PyPI, run on the command line
 ```bash
 $ pip install pydca
+```
+or you can use the `install.sh` bash script as 
+```bash 
+$ source install.sh
 ```
 # Using `pydca` as a Python Library
 After installation, pydca can be imported into other Python source codes and used. 
@@ -68,3 +72,12 @@ $ pydca --help
 ```bash
 $ plmdca compute_fn  --help
 ```
+
+### References 
+1. Morcos, F., Pagnani, A., Lunt, B., Bertolino, A., Marks, DS., Sander, C., Zecchina, R., Onuchic, JN., Hwa, T., and Weigt, M. <br>
+Direct-coupling analysis of residue coevolution captures native contacts across many protein families <br>
+PNAS December 6, 2011 108 (49) E1293-E1301. doi:10.1073/pnas.1111471108
+
+2. Ekeberg, M., Lövkvist, C., Lan, Y., Weigt, M., & Aurell, E. (2013). <br>
+Improved contact prediction in proteins: Using pseudolikelihoods to infer Potts models. <br>
+Physical Review E, 87(1), 012707. doi:10.1103/PhysRevE.87.012707

@@ -1,2 +1,2 @@
-"""Implements unit tests for pymfDCA package.
+"""Implements unit tests for pydca package.
 """

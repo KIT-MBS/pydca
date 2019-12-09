@@ -51,16 +51,7 @@ class CmdArgs:
     apc_optional = '--apc'
     apc_help = """Compute the average product corrected (APC) DCA score.
     """
-    force_seq_type_optional = '--force_seq_type'
-    force_seq_type_help = """Typically the anticipated number of residue types
-    plus a gap is 21 for protein, and 5 for RNA sequences. If there is a significant
-    deviation from these values, it is interpreted as the user has inadvertently
-    entered a biomolecule type mismatch and an error may be raised.
-    This can happen when the alignment data contains too many/few non-standared
-    residues or when a wrong biomolecule type is entered. If you are sure about
-    the biomolecule type the MSA data represents, use --force_seq_type to bypass
-    this error.
-    """
+
     msa_file = 'msa_file'
     msa_file_help = 'Multiple sequence alignment (MSA) file in FASTA format'
 
@@ -86,16 +77,20 @@ class CmdArgs:
     seqid_help = """Cut-off value of sequences similarity above which they
     are lumped together.
     """
-    pdb_file = 'pdb_file'
-    pdb_file_help = """Path to a PDB file.
-    """
-    dca_file = 'dca_file'
-    dca_file_help = """File containing the result of DCA computation. The first
-    and second columns should contain site pairs (i, j) such that i < j. Optionally,
-    a third column can contain the DCA scores. The DCA scores are not mandatory
-    as the site-pairs are assumed to be sorted, in descending order of DCA score.
+
+    ranked_by_optional = '--ranked_by'
+    ranked_by_optional_help="""Method in which DCA scores are calculated. There are
+    four options: direct information (DI), Frobenius norm (FN) and their average
+    product corrected forms (DI_APC, FN_APC).
     """
 
+    linear_dist_optional = '--linear_dist'
+    linear_dist_help="""Minimum separation beteween site pairs in sequence. 
+    """
+    num_site_pairs_optional = '--num_site_pairs'
+    num_site_pairs_help = """The maximum number of site pairs whose couplings are 
+    to be extracted.
+    """
 ## end of class CmdArgs
 
 DCA_COMPUTATION_SUBCOMMANDS = ['compute_di', 'compute_fn','compute_couplings',
@@ -127,56 +122,15 @@ def get_mfdca_instance(msa_file, biomolecule, force_seq_type=False, **kwargs):
     seqid = kwargs.get('seqid')
     pseudocount = kwargs.get('pseudocount')
     mfdca_inst = meanfield_dca.MeanFieldDCA(msa_file, biomolecule,
-        pseudocount=pseudocount,seqid=seqid,
-        force_seq_type=force_seq_type)
-    return mfdca_inst
-
-
-def add_args_to_subparser(the_parser, subcommand_name):
-    """Adds arguments to a pasrser. These added arguments are common to all
-    sub-commands that are used for mean-field DCA computation.
-
-    Parameters
-    ----------
-        the_parser : ArgumentParser
-            The (sub) parser that to which the arguments are added.
-
-    Returns
-    -------
-        None
-    """
-
-    the_parser.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help,
-        action='store_true',
+        pseudocount=pseudocount,seqid=seqid
     )
-    if subcommand_name in DCA_COMPUTATION_SUBCOMMANDS:
-        the_parser.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
-        the_parser.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
-        the_parser.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help,
-            action = 'store_true',
-        )
-        the_parser.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help,
-            type = float,
-        )
-        the_parser.add_argument(CmdArgs.pseudocount_optional,
-            help=CmdArgs.pseudocount_help,
-            type = float,
-        )
-        the_parser.add_argument(CmdArgs.refseq_file_optional,
-            help = CmdArgs.refseq_file_help
-        )
-        the_parser.add_argument(CmdArgs.output_dir_optional,
-            help=CmdArgs.output_dir_help,
-        )
-        the_parser.add_argument(CmdArgs.force_seq_type_optional,
-            help = CmdArgs.force_seq_type_help,
-            action = 'store_true',
-        )
+    return mfdca_inst
 
 
 def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
         pseudocount=None, the_command=None, refseq_file = None,
-        force_seq_type=False, verbose=False, output_dir=None, apc=False):
+        verbose=False, output_dir=None, apc=False, ranked_by=None,
+        linear_dist=None, num_site_pairs=None):
     """Do computations according to the parameters passed on the command line
 
     Parameters
@@ -193,8 +147,6 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
             Name of the command passed from the command line.
         refseq_file : str
             Path to reference sequence file.
-        force_seq_type : bool
-            Force computation although there might be a biomolecule type  mismatch.
         verbsoe : bool
             Display logging message to the screen.
         ouput_dir : str
@@ -210,86 +162,60 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
 
     if verbose: configure_logging()
 
-    ######  start dca computation #############################################
     if the_command.strip() in DCA_COMPUTATION_SUBCOMMANDS:
         mfdca_instance = get_mfdca_instance(msa_file, biomolecule, seqid=seqid,
-            pseudocount=pseudocount, force_seq_type=force_seq_type,
+            pseudocount=pseudocount,
         )
-
+        seqbackmapper = None
+        # update mapped_sites  when refseq is provided
+        if refseq_file:# do backmapping when reference sequence file is provided
+            seqbackmapper = SequenceBackmapper(
+                alignment_data=mfdca_instance.alignment,
+                refseq_file = refseq_file,
+                biomolecule = mfdca_instance.biomolecule
+            )
         param_metadata = dca_utilities.mfdca_param_metadata(mfdca_instance)
         #create path to output directory is not supplied by user
         if not output_dir:
             msa_file_base_name, ext = os.path.splitext(os.path.basename(msa_file))
             output_dir = 'MFDCA_output_' + msa_file_base_name
-        #create dca coutput directory
+        # create dca coutput directory
         dca_utilities.create_directories(output_dir)
-        #### Compute DCA score
-        if the_command.strip()=='compute_di' or the_command.strip()=='compute_couplings':
-            mapped_sites = None
-            if refseq_file:# do backmapping when reference sequence file is provided
-                seq_backmapper = SequenceBackmapper(
-                    alignment_data=mfdca_instance.alignment,
-                    refseq_file = refseq_file,
-                    biomolecule = mfdca_instance.biomolecule)
-                mapped_sites = seq_backmapper.map_to_reference_sequence()
+        # compute DCA score
+        if the_command.strip()=='compute_di':
             if apc: # do average product correction if apc is passed from the command line
-                sorted_DI, couplings = mfdca_instance.compute_sorted_DI_APC()
+                sorted_DI = mfdca_instance.compute_sorted_DI_APC(seqbackmapper=seqbackmapper)
                 score_type = ' MF DI average product corrected (APC)'
                 di_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix='MFDCA_apc_di_scores_', postfix='.txt'
                 )
             else: # compute raw DCA score if apc is not asked
-                sorted_DI, couplings = mfdca_instance.compute_sorted_DI()
+                sorted_DI = mfdca_instance.compute_sorted_DI(seqbackmapper=seqbackmapper)
                 score_type = 'raw DI'
                 di_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix='MFDCA_raw_di_scores_', postfix='.txt'
                 )
-            if the_command.strip() == 'compute_di':# write DI scores
-                dca_utilities.write_sorted_dca_scores(di_file_path,sorted_DI,
-                    site_mapping=mapped_sites, metadata=param_metadata,
-                    score_type = score_type
-                )
-            else: #  if the command is compute couplings
-                ranked_pairs_list =  dca_utilities.get_ranked_pairs(
-                    sorted_DI, site_mapping = mapped_sites
-                )
-                couplings_file_path = dca_utilities.get_dca_output_file_path(
-                    output_dir, msa_file, prefix='couplings_', postfix='.txt'
-                )
-                residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
-                    mfdca_instance.biomolecule
-                )
-                #save couplings to file
-                metadata  = param_metadata + residue_repr_metadata
-                dca_utilities.write_couplings(
-                    couplings_file_path, couplings,
-                    num_site_states = mfdca_instance.num_site_states,
-                    ranked_site_pairs = ranked_pairs_list,
-                    metadata = metadata,
-                )
+            
+            dca_utilities.write_sorted_dca_scores(di_file_path,sorted_DI,
+                metadata=param_metadata,
+                score_type = score_type
+            )
         # compute Frobenius norm of couplings
         if the_command.strip()=='compute_fn':
-            mapped_sites = None
-            if refseq_file:# do backmapping when reference sequence file is provided
-                seq_backmapper = SequenceBackmapper(
-                    alignment_data=mfdca_instance.alignment,
-                    refseq_file = refseq_file,
-                    biomolecule = mfdca_instance.biomolecule)
-                mapped_sites = seq_backmapper.map_to_reference_sequence()
             if apc:
                 score_type = 'MFDCA Frobenius norm, average product corrected (APC)'
-                sorted_FN = mfdca_instance.compute_sorted_FN_APC()
+                sorted_FN = mfdca_instance.compute_sorted_FN_APC(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'MFDCA_apc_fn_scores_', postfix='.txt'
                 )
             else:
                 score_type = 'MFDCA raw Frobenius norm'
-                sorted_FN = mfdca_instance.compute_sorted_FN()
+                sorted_FN = mfdca_instance.compute_sorted_FN(seqbackmapper=seqbackmapper)
                 fn_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                     msa_file, prefix = 'MFDCA_raw_fn_scores_', postfix='.txt'
                 )
             dca_utilities.write_sorted_dca_scores(fn_file_path, sorted_FN,
-                site_mapping = mapped_sites, metadata = param_metadata,
+                metadata = param_metadata,
                 score_type = score_type
             )
         # compute global probability local fields
@@ -302,30 +228,39 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
             fields_file_path = dca_utilities.get_dca_output_file_path(output_dir,
                 msa_file, prefix = 'fields_', postfix='.txt'
             )
-            dca_utilities.write_fields(fields_file_path, fields, metadata=metadata,
-                num_site_states = mfdca_instance.num_site_states,
+            dca_utilities.write_fields_csv(fields_file_path, fields, 
+                metadata=metadata,
             )
         # compute fields and couplings
         if the_command.strip() == 'compute_params':
-            fields, couplings = mfdca_instance.compute_hamiltonian()
+            fields, couplings = mfdca_instance.compute_params(
+                seqbackmapper = seqbackmapper,
+                ranked_by = ranked_by,
+                linear_dist = linear_dist,
+                num_site_pairs = num_site_pairs,
+            )
             residue_repr_metadata = dca_utilities.mfdca_residue_repr_metadata(
                 mfdca_instance.biomolecule
             )
             metadata = param_metadata + residue_repr_metadata
+            # write fields to text file
             fields_file_path = dca_utilities.get_dca_output_file_path(output_dir,
-                msa_file, prefix='fields_', postfix='.txt',
-            )
-            couplings_file_path = dca_utilities.get_dca_output_file_path(
-                output_dir, msa_file, prefix='couplings_', postfix='.txt',
-            )
-            dca_utilities.write_params(
-                fields_file_path=fields_file_path,
-                couplings_file_path=couplings_file_path,
-                fields=fields,
-                couplings=couplings,
-                metadata=metadata,
-                num_site_states = mfdca_instance.num_site_states,
-            )
+                    msa_file, prefix = 'fields_', postfix='.txt'
+                )
+            param_metadata.append('#\tTotal number of sites whose fields are extracted: {}'.format(len(fields))) 
+            dca_utilities.write_fields_csv(fields_file_path, fields, metadata=param_metadata)
+            couplings_file_path = dca_utilities.get_dca_output_file_path(output_dir,
+                    msa_file, prefix = 'couplings_', postfix='.txt'
+                )
+            param_metadata.pop() 
+            param_metadata.append('#\tTotal number of site pairs whose couplings are extracted: {}'.format(len(couplings)))
+            if ranked_by is None: # the default is FN_APC
+                ranked_by = 'FN_APC'
+            param_metadata.append('#\tDCA ranking method used: {}'.format(ranked_by))
+            if linear_dist is None: # default is |i - j| > 4
+                linear_dist = 4
+            param_metadata.append('#\tMinimum separation beteween site pairs in sequence: |i - j| > {}'.format(linear_dist))
+            dca_utilities.write_couplings_csv(couplings_file_path, couplings, metadata=param_metadata)
 
         #Compute single site frequencies
         if the_command.strip() == 'compute_fi':
@@ -343,7 +278,7 @@ def execute_from_command_line(msa_file=None, biomolecule=None, seqid=None,
 
         #Compute pair site frequencies
         if the_command.strip() == 'compute_fij':
-            # pass --pseudocount 0.0 to compute raw fijs
+            # pass --pseudocount 0.0 to compute raw fij
             file_path = dca_utilities.get_dca_output_file_path(output_dir,
                 msa_file, prefix='fij_', postfix='.txt',
             )
@@ -377,56 +312,86 @@ def run_meanfield_dca():
     #Create subparsers
     subparsers = parser.add_subparsers(dest = CmdArgs.subcommand_name)
 
-    #direct information computation parser
+    # Mean-field DI computation parser
     parser_compute_di = subparsers.add_parser('compute_di',
         help = 'Computes the direct information.'
         ' Example: mfdca compute_di <biomolecule> <MSA> --verbose, where'
         ' <biomolecule> takes a value protein or rna (case insensitive)'
         ' <MSA> takes path to the MSA file',
     )
-    add_args_to_subparser(parser_compute_di, 'compute_di')
+    
+    parser_compute_di.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
+    parser_compute_di.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
+    parser_compute_di.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help, type = float)
+    parser_compute_di.add_argument(CmdArgs.pseudocount_optional, help=CmdArgs.pseudocount_help, type = float)
+    parser_compute_di.add_argument(CmdArgs.refseq_file_optional, help = CmdArgs.refseq_file_help)
+    parser_compute_di.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_di.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help, action='store_true')
+    parser_compute_di.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
+
+    # Mean-field FN computation parser
     parser_compute_fn = subparsers.add_parser('compute_fn',
         help = 'Compute the Frobenius norm of couplings.'
             ' Example: see compute_di',
     )
-    add_args_to_subparser(parser_compute_fn, 'compute_fn')
-
-    #couplings computation parser
-    parser_compute_couplings = subparsers.add_parser('compute_couplings',
-        help = 'Computes the couplings for a protein or RNA from MSA input data.'
-            ' The biomolecule type (protein/RNA) must be specified. In addition,'
-            ' a file containing a reference sequence can be supplied. For more '
-            ' information about this command use --help.'
-    )
-    add_args_to_subparser(parser_compute_couplings, 'compute_couplings')
-
-    # fields computation parser
-    parser_compute_fields = subparsers.add_parser('compute_fields',
-        help = 'Computes the global probability fields'
-    )
-    add_args_to_subparser(parser_compute_fields, 'compute_fields')
+    
+    parser_compute_fn.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
+    parser_compute_fn.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
+    parser_compute_fn.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help, type = float)
+    parser_compute_fn.add_argument(CmdArgs.pseudocount_optional, help=CmdArgs.pseudocount_help, type = float)
+    parser_compute_fn.add_argument(CmdArgs.refseq_file_optional, help = CmdArgs.refseq_file_help)
+    parser_compute_fn.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_fn.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help, action='store_true')
+    parser_compute_fn.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
 
     # parameters (fields and couplings) computation parser
     parser_compute_params = subparsers.add_parser('compute_params',
         help = 'Computes the parameters of global probability model, i.e., '
             ' couplings and fields in one run.'
     )
-    add_args_to_subparser(parser_compute_params, 'compute_params')
+    parser_compute_params.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
+    parser_compute_params.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
+    parser_compute_params.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help, type = float)
+    parser_compute_params.add_argument(CmdArgs.pseudocount_optional, help=CmdArgs.pseudocount_help, type = float)
+    parser_compute_params.add_argument(CmdArgs.refseq_file_optional, help = CmdArgs.refseq_file_help)
+    parser_compute_params.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_params.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help, action='store_true')
+    parser_compute_params.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
+    parser_compute_params.add_argument(CmdArgs.ranked_by_optional, help=CmdArgs.ranked_by_optional_help, 
+        choices= ('FN', 'FN_APC', 'DI', 'DI_APC', 'fn', 'fn_apc', 'di', 'di_apc')
+    )
+    parser_compute_params.add_argument(CmdArgs.linear_dist_optional, help=CmdArgs.linear_dist_help, type=int)
+    parser_compute_params.add_argument(CmdArgs.num_site_pairs_optional, help=CmdArgs.num_site_pairs_help, type=int)
 
+    
     #Single site frequencies computation parser
     parser_compute_fi = subparsers.add_parser('compute_fi',
         help = 'Computes regularized single-site frequencies from MSA.'
             ' If raw frequencies are desired, use --pseudocount 0'
     )
-    add_args_to_subparser(parser_compute_fi, 'compute_fi')
-
+    parser_compute_fi.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
+    parser_compute_fi.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
+    parser_compute_fi.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help, type = float)
+    parser_compute_fi.add_argument(CmdArgs.pseudocount_optional, help=CmdArgs.pseudocount_help, type = float)
+    parser_compute_fi.add_argument(CmdArgs.refseq_file_optional, help = CmdArgs.refseq_file_help)
+    parser_compute_fi.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_fi.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help, action='store_true')
+    parser_compute_fi.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
+    
     #pair site frequencies computation parser
     parser_compute_fij = subparsers.add_parser('compute_fij',
         help = 'Computes regularized pair-site frequencies from MSA. If raw'
         ' frequenceis are desired, set the pseudocount to zero. Use --help'
         ' for more information.'
     )
-    add_args_to_subparser(parser_compute_fij, 'compute_fij')
+    parser_compute_fij.add_argument(CmdArgs.biomolecule, help = CmdArgs.biomolecule_help)
+    parser_compute_fij.add_argument(CmdArgs.msa_file, help = CmdArgs.msa_file_help)
+    parser_compute_fij.add_argument(CmdArgs.seqid_optional, help = CmdArgs.seqid_help, type = float)
+    parser_compute_fij.add_argument(CmdArgs.pseudocount_optional, help=CmdArgs.pseudocount_help, type = float)
+    parser_compute_fij.add_argument(CmdArgs.refseq_file_optional, help = CmdArgs.refseq_file_help)
+    parser_compute_fij.add_argument(CmdArgs.output_dir_optional, help=CmdArgs.output_dir_help)
+    parser_compute_fij.add_argument(CmdArgs.verbose_optional, help=CmdArgs.verbose_help, action='store_true')
+    parser_compute_fij.add_argument(CmdArgs.apc_optional, help=CmdArgs.apc_help, action='store_true')
 
     #display help if no argument is passed
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
@@ -439,10 +404,12 @@ def run_meanfield_dca():
         pseudocount = args_dict.get('pseudocount'),
         refseq_file = args_dict.get('refseq_file'),
         the_command = args_dict.get('subcommand_name'),
-        force_seq_type=args_dict.get('force_seq_type'),
         verbose = args_dict.get('verbose'),
         output_dir = args_dict.get('output_dir'),
         apc = args_dict.get('apc'),
+        ranked_by = args_dict.get('ranked_by'),
+        linear_dist = args_dict.get('linear_dist'),
+        num_site_pairs = args_dict.get('num_site_pairs'),
     )
     logger.info('\n\tDONE')
     return None

@@ -187,50 +187,6 @@ std::vector<std::vector<std::vector<std::vector<float>>>> PlmDCA:: fourDimVecFac
 }
 
 
-
-//Print pair-site frequencies computed using the multithreaded version of pair-site
-//frequency computation method
-void PlmDCA::printPairSiteFreqsMultiThreaded()
-{
-    std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    auto fij = this->getPairSiteFreqs();
-    auto const& L = this->seqs_len;
-    auto const& q = this->num_site_states;
-    for(unsigned int i = 0; i < L - 1; ++i){
-        for(unsigned int j = i + 1; j < L; ++j){
-            for(unsigned int a = 0; a < q; ++a){
-                for(unsigned int b = 0; b < q; ++b){
-                    auto indx = this->mapIndexPairSiteFreqs(i, j, a, b);
-                    std::cout << i << " " << j << " " << a << " " << " " << b << " " << indx << " " << fij.at(indx) << std::endl;
-                 }
-            }
-        }
-    }
-}
-
-
-//Print pair-site frequencies computed using the fragmented memory layout method
-void PlmDCA::printPairSiteFreqsFragmented()
-{
-    std::cout << "#" << __PRETTY_FUNCTION__ << std::endl;
-    auto fij_fragmented = this->getPairSiteFreqsFragmented();
-    auto const& L = this->seqs_len;
-    auto const& q = this->num_site_states;
-    for(unsigned int i = 0; i < L - 1; ++i){
-        for(unsigned int j = i + 1; j < L; ++j){
-            for(unsigned int a = 0; a < q; ++a){
-                for(unsigned int b = 0; b < q; ++b){
-                    auto indx = this->mapIndexPairSiteFreqs(i, j, a, b);
-                    std::cout << i << " " << j << " " << a << " " << " " << b << " " << indx << " " << fij_fragmented[i][j][a][b] << std::endl;
-                 }
-            }
-        }
-    }
-}
-
-
-
-
 // Investigate single site frequencies
 void PlmDCA::testSingleSiteFreqs()
 {

@@ -17,10 +17,7 @@ or you can use the `install.sh` bash script as
 ```bash 
 $ source install.sh
 ```
-# Errors from numba llvmlite 
-`pydca` depends on numba version 0.46.0 which in turn depends on llmvite. Recently,
-we found out that numba fails with `llvmlite 0.31`. If you encounter problem with numba
-in pydca, please install `llvmlite 0.30` instead of `llvmlite 0.31`
+
 # Using `pydca` as a Python Library
 After installation, pydca can be imported into other Python source codes and used. 
 [Here is IPython Notebook example](https://github.com/KIT-MBS/pydca/blob/master/examples/pydca_demo.ipynb). 
@@ -77,8 +74,8 @@ $ pydca --help
 $ plmdca compute_fn  --help
 ```
 
-### References
-## If you use pydca for your work please cite the following references
+# References
+### If you use pydca for your work please cite the following references
 1. Zerihun, MB., Pucci, F, Peter, EK, and Schug, A. <br>
 pydca: v1.0: A Comprehensive Software for Direct Coupling Analysis of RNA and Protein Sequences <br>
  Bioinformatics, btz892, doi.org/10.1093/bioinformatics/btz892

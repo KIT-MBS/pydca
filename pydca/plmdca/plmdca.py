@@ -61,7 +61,7 @@ class PlmDCA:
         if self.__seqid <= 0 or self.__seqid > 1.0: 
             logger.error('\n\t{} is an invalid value of sequences identity (seqid) parameter'.format(self.__seqid))
             raise PlmDCAException 
-        self.__lambda_h= 1.0 if lambda_h is None else lambda_h
+        self.__lambda_h= 0.2*(self.__seqs_len - 1) if lambda_h is None else lambda_h
         if self.__lambda_h < 0 :
             logger.error('\n\tlambda_h must be a positive number. You passed lambda_h={}'.format(self.__lambda_h))
             raise PlmDCAException  

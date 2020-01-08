@@ -498,7 +498,7 @@ float  PlmDCA::gradient(const float* fields_and_couplings, float* grad)
     auto const& q = this->num_site_states;
     auto const& L = this->seqs_len;
     auto const& Nseq = this->num_seqs;
-    auto const& lh = this->lambda_J;
+    auto const& lh = this->lambda_h;
     auto const& lJ = this->lambda_J;
 
     float fx = 0.f;

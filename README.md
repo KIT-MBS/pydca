@@ -77,7 +77,7 @@ $ plmdca compute_fn  --help
 # References
 ### If you use pydca for your work please cite the following references
 1. Zerihun, MB., Pucci, F, Peter, EK, and Schug, A. <br>
-pydca: v1.0: A Comprehensive Software for Direct Coupling Analysis of RNA and Protein Sequences <br>
+pydca: v1.0: a comprehensive software for direct coupling analysis of RNA and protein sequences <br>
  Bioinformatics, btz892, doi.org/10.1093/bioinformatics/btz892
 
 2. Morcos, F., Pagnani, A., Lunt, B., Bertolino, A., Marks, DS., Sander, C., Zecchina, R., Onuchic, JN., Hwa, T., and Weigt, M. <br>

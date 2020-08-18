@@ -36,7 +36,7 @@ plmdca_ext = Extension(
 
 setup(
     name="pydca",
-    version="1.22",
+    version="1.23",
     author="Mehari B. Zerihun",
     author_email="mbzerihun@gmail.com",
     python_requires=">=3.5",

@@ -37,4 +37,4 @@ class MeanFieldDCATestCase(unittest.TestCase):
         sorted_DI = self.__mfdca_instance_protein.compute_sorted_DI()
 
 if __name__ == '__main__':
-    unittes.main()
+    unittest.main()

@@ -119,25 +119,10 @@ def get_alignment_from_fasta_file(file_name):
     return alignment
 
 
-def get_alignment_int_form(file_name, biomolecule='protein'):
-    """Converts sequences in integer representation. The sequences are
-    first read by get_alignment_from_fasta_file(file_name) function that returns
-    a list of sequences.
-
-    Parameters
-    ----------
-        file_name : str
-            Fasta file name containing the alignment data.
-        biomolecule : str
-            The type of biomolecule the sequence data reprsents. This can be
-            either portein or RNA in lower or upper cases.
-
-    Returns
-    -------
-      alignment_int_form : list
-        a list of alignments, each sequence in a list of integers.
+def alignment_letter2int(alignment, biomolecule='protein'):
     """
-
+    Converts sequences in a multiple sequence alignment from one letter to integer representation.
+    """
     biomolecule=biomolecule.strip().upper()
     if biomolecule not in ['PROTEIN','RNA']:
         logger.error(
@@ -147,7 +132,6 @@ def get_alignment_int_form(file_name, biomolecule='protein'):
     NUM_SITE_STATES = 21 if biomolecule == 'PROTEIN' else 5
     RES_TO_INT = RES_TO_INT_ALL[biomolecule]
     alignment_int_form = []
-    alignment = get_alignment_from_fasta_file(file_name)
 
     num_seqs_with_non_standard_res = 0
     num_non_standard_res = 0
@@ -176,6 +160,31 @@ def get_alignment_int_form(file_name, biomolecule='protein'):
     if not alignment_int_form:
         logger.error('\n\tNo data found in alignment in integer representation')
         raise ValueError
+    return alignment_int_form
+
+
+def get_alignment_int_form(file_name, biomolecule='protein'):
+    """Converts sequences in integer representation. The sequences are
+    first read by get_alignment_from_fasta_file(file_name) function that returns
+    a list of sequences.
+
+    Parameters
+    ----------
+        file_name : str
+            Fasta file name containing the alignment data.
+        biomolecule : str
+            The type of biomolecule the sequence data reprsents. This can be
+            either portein or RNA in lower or upper cases.
+
+    Returns
+    -------
+      alignment_int_form : list
+        a list of alignments, each sequence in a list of integers.
+    """
+
+    alignment = get_alignment_from_fasta_file(file_name)
+    alignment_int_form = alignment_letter2int(alignment, biomolecule)
+
     return alignment_int_form
 
 

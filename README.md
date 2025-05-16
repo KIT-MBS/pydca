@@ -1,6 +1,6 @@
 # About `pydca`
 > [!CAUTION]
-> Unfortunately, pyDCA will no longer be updated to newer versions. If you wish to continue using it, we recommend utilizing a Docker container. An example setup is shown [here](how_to_docker.md).
+> Unfortunately, pyDCA is based on specific python versions and libraries. If you want to use it, we recommend utilizing a Docker container. An example setup is shown [here](how_to_docker.md).
 
 `pydca` is Python implementation of direct coupling analysis (DCA) of residue coevolution for protein and RNA sequence families using the **__mean-field__** and **__pseudolikelihood maximization__** algorithms. Given multiple sequence alignment (MSA) files in FASTA format, `pydca` computes the coevolutionary scores of pairs of sites in the alignment. In addition, when an optional file containing a reference sequence is supplied, scores corresponding to pairs of sites of this reference sequence are computed by mapping the reference sequence to the MSA. The software provides command line utilities or it can be used as a library. 
 

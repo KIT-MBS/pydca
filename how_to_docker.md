@@ -10,7 +10,7 @@ WORKDIR /data
 
 Build your docker image in the terminal:
 ```bash
-$ docker build -t pydca:latest
+$ docker build -t pydca:latest .
 ```
 
 
